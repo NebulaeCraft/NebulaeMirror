@@ -1,0 +1,29 @@
+# origin server snapshots (large, private)
+/data/
+
+# build outputs
+build/
+.gradle/
+out/
+run/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# local dumps / generated artifacts (snapshots worth keeping go to mapping/snapshots)
+/dumps/
+/work/
+
+.DS_Store
+**/.DS_Store
+
+# python
+__pycache__/
+*.pyc

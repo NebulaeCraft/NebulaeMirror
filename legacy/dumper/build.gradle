@@ -1,0 +1,57 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+
+// Keep in sync with MirrorDumper.VERSION
+version = '0.1.0'
+group = 'net.kuina.nebulaemirror'
+archivesBaseName = 'MirrorDumper-1.12.2'
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+
+// Same Apple-Silicon workaround as NebulaeCraft: 1.12's LWJGL 2.9.2 has no arm64 build.
+def isMacosArm = org.gradle.internal.os.OperatingSystem.current().isMacOsX() &&
+        ['aarch64', 'arm64'].contains(System.getProperty('os.arch').toLowerCase())
+if (isMacosArm) {
+    configurations.all {
+        resolutionStrategy.force 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+        resolutionStrategy.force 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
+        resolutionStrategy.force 'net.java.dev.jna:jna:5.13.0'
+    }
+}
+
+minecraft {
+    // Same Forge + mappings as NebulaeCraft, so the ForgeGradle cache is shared.
+    mappings channel: 'snapshot', version: '20171003-1.12'
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2864'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('mcmod.info') {
+        expand 'version': project.version
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+            "Implementation-Title"  : project.name,
+            "Implementation-Version": "${version}",
+        ])
+    }
+}
+
+// Produce an SRG-named jar that runs in a normal (production) 1.12.2 Forge client.
+jar.finalizedBy('reobfJar')
