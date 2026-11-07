@@ -58,7 +58,7 @@ public final class ImportHook {
         }
     }
 
-    static Predicate<int[]> regionFilter(String spec) {
+    public static Predicate<int[]> regionFilter(String spec) {
         if (spec == null || spec.isBlank()) {
             return r -> true;
         }

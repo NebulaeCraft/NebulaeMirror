@@ -88,6 +88,9 @@ loom {
             if (project.hasProperty('importRegions')) {
                 vmArg "-Dnebulaemirror.import.regions=${project.property('importRegions')}"
             }
+            if (project.hasProperty('syncDebug')) { // log every live block change made by /nebulaemirror sync
+                vmArg '-Dnebulaemirror.sync.debug=true'
+            }
             if (project.hasProperty('importOverwrite')) {
                 vmArg '-Dnebulaemirror.import.overwrite=true'
             }

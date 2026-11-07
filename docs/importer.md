@@ -1,6 +1,6 @@
 # Importer (1.12.2 world → 1.21.1 mirror world)
 
-Part of `mirror/mod`: when the mirror server starts with the right JVM argument, it converts the 1.12 overworld region files into the server's world directory before any world is loaded, then the server starts as normal. This is the "full offline import" from the plan; the online incremental sync (P2) will reuse the same chunk converter.
+Part of `mirror/mod`: when the mirror server starts with the right JVM argument, it converts the 1.12 overworld region files into the server's world directory before any world is loaded, then the server starts as normal. This is the "full offline import" from the plan; the online incremental sync ([sync.md](sync.md)) uses the same chunk converter.
 
 ## Usage
 
@@ -24,7 +24,8 @@ Part of `mirror/mod`: when the mirror server starts with the right JVM argument,
    - `-Dnebulaemirror.import.threads=8`;
    - `-Dnebulaemirror.import.overwrite=true`: allow overwriting an existing `region/`. By default it refuses to overwrite.
 
-4. Results are written to `world/nebulaemirror-import.json`: chunk/block counts, unknown blocks (by name:meta), errors, and the 1.12 spawn point. The spawn is applied to the mirror world automatically on first start.
+4. The import also writes the incremental-sync baseline (`world/nebulaemirror/sync/`, see [sync.md](sync.md)). So import from the same local copy that the sync's `source` points to.
+5. Results are written to `world/nebulaemirror-import.json`: chunk/block counts, unknown blocks (by name:meta), errors, and the 1.12 spawn point. The spawn is applied to the mirror world automatically on first start.
 
 For development, `cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12 [-PimportRegions=...]` uses `run/import/`.
 
@@ -79,4 +80,4 @@ cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12-full
 | Chisels&Bits | Renders (P1) |
 | Entities (armor stands, item frames, paintings, mobs, minecarts) | Not imported yet (139 dropped in the test area). Decorative entities are later work |
 | Modded items in vanilla containers | Can't exist in 1.21 and are dropped (only the mirror's copy; the origin is unaffected) |
-| Online incremental sync, skipping locked zones | P2 |
+| Online incremental sync | Done in P2, see [sync.md](sync.md); skipping locked zones uses the `SyncGuard` hook, which P3 zones will plug into |

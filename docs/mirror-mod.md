@@ -40,6 +40,7 @@ It writes into `mirror/mod/run/selftest/`:
 | Tints | grass/foliage follow the biome; constant colours are fixed; `state` colours vary per state (Railcraft's 16-colour posts, tanks, glass and so on) |
 | `nebulaemirror:legacy` BlockEntity | Generic blocks that had a TileEntity in 1.12, plus `nebulaemirror:unknown`, keep the original NBT unchanged (`Legacy` tag) and sync it to clients for P1 renderers (see [legacy-renderers.md](legacy-renderers.md)). Most are meshed with their chunk; only text blocks use a block-entity renderer, and a client mixin hides that renderer from all other legacy block entities |
 | `nebulaemirror:unknown` | Placeholder for unmapped 1.12 blocks; its data is preserved for write-back |
+| Incremental sync | `sync/` package: the `/nebulaemirror sync ...` commands, the timer, change detection and live/disk application, see [sync.md](sync.md). Server side only; the common mixin `ChunkMapAccessor` lets it tell whether a chunk is in memory |
 
 ## Current results (full modpack dump)
 

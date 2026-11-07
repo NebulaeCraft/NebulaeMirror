@@ -3,6 +3,9 @@
   "minVersion": "0.8",
   "package": "net.kuina.nebulaemirror.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkMapAccessor"
+  ],
   "client": [
     "client.BlockEntityRenderDispatcherMixin"
   ],

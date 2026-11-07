@@ -1,0 +1,8 @@
+{
+  "rcon": {"host": "192.168.1.10", "port": 25575, "passwordFile": "rcon-password"},
+  "remote": "mc@192.168.1.10:/srv/minecraft/world/",
+  "dest": "/srv/mirror/world12",
+  "rsyncArgs": ["-e", "ssh -i /srv/mirror/.ssh/pull_ed25519"],
+  "rconTimeoutSeconds": 300,
+  "rsyncTimeoutSeconds": 1200
+}

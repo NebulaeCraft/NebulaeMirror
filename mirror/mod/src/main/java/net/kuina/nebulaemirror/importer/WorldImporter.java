@@ -3,6 +3,8 @@ package net.kuina.nebulaemirror.importer;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import net.kuina.nebulaemirror.NebulaeMirror;
+import net.kuina.nebulaemirror.sync.SourceHash;
+import net.kuina.nebulaemirror.sync.SyncState;
 import net.minecraft.nbt.CompoundTag;
 
 import java.io.IOException;
@@ -34,6 +36,7 @@ public final class WorldImporter {
         ImportStats stats = new ImportStats();
         ChunkConverter converter = new ChunkConverter(table, stats);
         Path targetRegion = targetWorld.resolve("region");
+        SyncState syncState = new SyncState(targetWorld);
         List<Path> regions;
         try (Stream<Path> s = Files.list(source.resolve("region"))) {
             regions = s.filter(p -> p.getFileName().toString().matches("r\\.-?\\d+\\.-?\\d+\\.mca"))
@@ -52,15 +55,22 @@ public final class WorldImporter {
             for (Path region : regions) jobs.add(pool.submit(() -> {
                 Map<Integer, CompoundTag> out = new TreeMap<>();
                 try {
-                    for (Map.Entry<Integer, CompoundTag> e : RegionIO.read(region).entrySet()) {
+                    RegionIO.Region in = RegionIO.read(region, i -> true);
+                    // What incremental sync compares against later (hashed before conversion mutates the tag).
+                    SyncState.RegionState applied = new SyncState.RegionState();
+                    for (Map.Entry<Integer, CompoundTag> e : in.chunks().entrySet()) {
                         try {
+                            long hash = SourceHash.of(e.getValue());
                             out.put(e.getKey(), converter.convert(e.getValue()));
+                            applied.set(e.getKey(), in.header().timestamps()[e.getKey()], hash);
                             stats.chunks.incrementAndGet();
                         } catch (Exception ex) {
                             stats.error(region.getFileName() + "#" + e.getKey(), ex);
                         }
                     }
                     RegionIO.write(targetRegion.resolve(region.getFileName()), out);
+                    int[] rxz = RegionIO.regionXZ(region);
+                    syncState.save(rxz[0], rxz[1], applied);
                 } catch (IOException ex) {
                     stats.error(region.getFileName().toString(), ex);
                 }
@@ -91,6 +101,7 @@ public final class WorldImporter {
         spawn.addProperty("z", level.spawn.getZ());
         report.add("legacySpawn", spawn);
         report.addProperty("spawnApplied", false);
+        syncState.writeBaseline(source.toString(), "full import");
         Files.writeString(targetWorld.resolve(REPORT), new GsonBuilder().setPrettyPrinting().create().toJson(report),
                 StandardCharsets.UTF_8);
         NebulaeMirror.LOG.info("Import finished: {} chunks ({} failed), {} modded blocks, {} unknown, {} legacy BEs in {} s",

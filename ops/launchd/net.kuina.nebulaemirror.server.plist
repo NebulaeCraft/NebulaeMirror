@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keeps the NebulaeMirror server running on the mirror Mac (see docs/sync.md).
+  Replace every /srv/mirror path, then:
+    cp net.kuina.nebulaemirror.server.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/net.kuina.nebulaemirror.server.plist
+  Stop (the server saves on SIGTERM):  launchctl bootout gui/$(id -u)/net.kuina.nebulaemirror.server
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>net.kuina.nebulaemirror.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/srv/mirror/NebulaeMirror/ops/server/run.sh</string>
+        <string>/srv/mirror/server</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>JAVA</key>
+        <string>/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java</string>
+        <key>HEAP</key>
+        <string>10G</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <!-- Restart after a crash, but not after a clean "stop". -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+    <!-- SIGTERM, then this long for the world save before SIGKILL. -->
+    <key>ExitTimeOut</key>
+    <integer>300</integer>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>StandardOutPath</key>
+    <string>/srv/mirror/server/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/srv/mirror/server/logs/launchd.err.log</string>
+</dict>
+</plist>

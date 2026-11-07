@@ -23,12 +23,12 @@ public final class ImportStats {
     public final Map<String, AtomicLong> unknownByName = new ConcurrentHashMap<>();
     public final Map<String, String> errors = new ConcurrentHashMap<>();
 
-    void unknown(String key) {
+    public void unknown(String key) {
         unknownBlocks.incrementAndGet();
         unknownByName.computeIfAbsent(key, k -> new AtomicLong()).incrementAndGet();
     }
 
-    void error(String where, Throwable t) {
+    public void error(String where, Throwable t) {
         failedChunks.incrementAndGet();
         if (errors.size() < 200) {
             errors.put(where, t.toString());

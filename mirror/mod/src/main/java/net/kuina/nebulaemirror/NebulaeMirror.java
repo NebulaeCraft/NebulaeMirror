@@ -18,6 +18,7 @@ import net.kuina.nebulaemirror.block.MirrorWallBlock;
 import net.kuina.nebulaemirror.block.UnknownBlock;
 import net.kuina.nebulaemirror.data.MirrorData;
 import net.kuina.nebulaemirror.importer.ImportHook;
+import net.kuina.nebulaemirror.sync.SyncService;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -106,6 +107,7 @@ public class NebulaeMirror implements ModInitializer {
 
         registerTabs();
         ImportHook.register();
+        SyncService.register();
         MirrorCommands.register();
         LOG.info("Registered {} mirror blocks {} in {} ms", BLOCKS.size(), archetypes,
                 System.currentTimeMillis() - start);

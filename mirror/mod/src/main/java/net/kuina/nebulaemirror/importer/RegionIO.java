@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.IntPredicate;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
@@ -31,18 +32,64 @@ public final class RegionIO {
     private RegionIO() {
     }
 
+    /** Location and timestamp tables of a region file; a chunk is present iff its location is non-zero. */
+    public record Header(int[] locations, int[] timestamps) {
+        public boolean present(int index) {
+            return (locations[index] >>> 8) != 0;
+        }
+    }
+
+    /** Reads only the 8 KiB header (cheap change detection). A file shorter than that has no chunks. */
+    public static Header readHeader(Path file) throws IOException {
+        byte[] head = new byte[2 * SECTOR];
+        int n = 0;
+        try (InputStream in = Files.newInputStream(file)) {
+            while (n < head.length) {
+                int r = in.read(head, n, head.length - n);
+                if (r < 0) {
+                    break;
+                }
+                n += r;
+            }
+        }
+        return header(head, n);
+    }
+
+    private static Header header(byte[] data, int length) {
+        int[] loc = new int[1024];
+        int[] ts = new int[1024];
+        if (length >= 2 * SECTOR) {
+            ByteBuffer buf = ByteBuffer.wrap(data);
+            for (int i = 0; i < 1024; i++) {
+                loc[i] = buf.getInt(i * 4);
+                ts[i] = buf.getInt(SECTOR + i * 4);
+            }
+        }
+        return new Header(loc, ts);
+    }
+
+    /** A region file read at one moment: its header and the requested chunks. */
+    public record Region(Header header, Map<Integer, CompoundTag> chunks) {
+    }
+
     /** All chunks of a region file keyed by local index (x & 31) + (z & 31) * 32. */
     public static Map<Integer, CompoundTag> read(Path file) throws IOException {
+        return read(file, i -> true).chunks();
+    }
+
+    /** The header and the chunks whose local index passes {@code which}, from a single read of the file. */
+    public static Region read(Path file, IntPredicate which) throws IOException {
         byte[] data = Files.readAllBytes(file);
+        Header header = header(data, data.length);
         Map<Integer, CompoundTag> out = new TreeMap<>();
         if (data.length < 2 * SECTOR) {
-            return out;
+            return new Region(header, out);
         }
         ByteBuffer buf = ByteBuffer.wrap(data);
         for (int i = 0; i < 1024; i++) {
-            int loc = buf.getInt(i * 4);
+            int loc = header.locations()[i];
             int offset = loc >>> 8;
-            if (offset == 0) {
+            if (offset == 0 || !which.test(i)) {
                 continue;
             }
             int pos = offset * SECTOR;
@@ -69,7 +116,7 @@ public final class RegionIO {
                 out.put(i, NbtIo.read(din, NbtAccounter.unlimitedHeap()));
             }
         }
-        return out;
+        return new Region(header, out);
     }
 
     /** Writes a complete region file atomically (temp file + move). */
@@ -118,6 +165,15 @@ public final class RegionIO {
     public static int[] regionXZ(Path file) {
         String[] p = file.getFileName().toString().split("\\.");
         return new int[]{Integer.parseInt(p[1]), Integer.parseInt(p[2])};
+    }
+
+    /** Chunk coordinates of local index {@code index} in region (rx, rz). */
+    public static int chunkX(int rx, int index) {
+        return rx * 32 + (index & 31);
+    }
+
+    public static int chunkZ(int rz, int index) {
+        return rz * 32 + (index >> 5);
     }
 
     private static int chunkX(Path file, int index) {

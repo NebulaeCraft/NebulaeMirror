@@ -11,7 +11,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] FutureMC/Quark → 1.21 vanilla overrides (`mapping/overrides/`)
 - [x] Importer: full offline import (DFU + modded block substitution), see [docs/importer.md](docs/importer.md)
 - [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
-- [ ] Online incremental sync (P2)
+- [x] P2 online incremental sync: pull (RCON `save-off`/`save-all flush` + rsync + `save-on`), timestamp + content-hash change detection, IO replacement of unloaded chunks / block diff of loaded chunks, in-mod timer + launchd keep-alive, see [docs/sync.md](docs/sync.md) (still to do: the first test against the real origin)
 - [ ] Bridge mod `legacy/bridge/` (zone lock, patch apply/rollback)
 
 ## Layout
@@ -26,6 +26,8 @@ The full design is in the approved technical plan (overall architecture, sync mo
 | `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |
 | `mapping/snapshots/` | Registry/mapping snapshots for diffing new blocks |
 | `ops/scan/` | World scan and coverage check |
+| `ops/sync/` | Origin pull script (RCON + rsync) and its tests |
+| `ops/server/` `ops/launchd/` | Mirror server config, start script and launchd keep-alive |
 | `ops/mc/` | Fetch 1.21.1 official jars and generate reference data |
 | `dumps/` `work/` | Local dumps and intermediate files (gitignored) |
 | `docs/` | Usage docs |
@@ -64,4 +66,10 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir>
 
 ```bash
 python3 -I -m unittest discover -s mirror/generator/tests
+```
+
+Sync tests (pull script):
+
+```bash
+python3 -I -m unittest discover -s ops/sync/tests
 ```

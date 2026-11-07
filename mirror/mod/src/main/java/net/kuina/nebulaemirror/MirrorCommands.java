@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.kuina.nebulaemirror.block.LegacyBlockEntity;
+import net.kuina.nebulaemirror.sync.SyncCommands;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,6 +29,7 @@ import java.util.TreeMap;
  * /nebulaemirror stats <chunkX1> <chunkZ1> <chunkX2> <chunkZ2>
  * Loads the chunk range and tallies blocks per namespace and per block id (non-air), writing
  * nebulaemirror-stats.json into the world directory — used to verify an import against the 1.12 scan.
+ * /nebulaemirror sync ...: see {@link SyncCommands}.
  */
 public final class MirrorCommands {
     private MirrorCommands() {
@@ -36,6 +38,7 @@ public final class MirrorCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> dispatcher.register(
                 Commands.literal("nebulaemirror").requires(s -> s.hasPermission(2))
+                        .then(SyncCommands.tree())
                         .then(Commands.literal("stats")
                                 .then(Commands.argument("x1", IntegerArgumentType.integer())
                                         .then(Commands.argument("z1", IntegerArgumentType.integer())
