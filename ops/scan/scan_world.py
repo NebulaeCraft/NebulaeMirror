@@ -140,6 +140,7 @@ def coverage(stats, dump_dir):
     """Every (name, meta) the world uses must exist in the dump with a round-tripping meta."""
     missing_block = collections.Counter()
     bad_meta = collections.Counter()
+    alias_meta = collections.Counter()
     no_model = collections.Counter()
     cache = {}
     for key, count in stats['states'].items():
@@ -156,18 +157,25 @@ def coverage(stats, dump_dir):
             missing_block[name] += count
             continue
         entry = b['metaTable'][meta]
-        if entry.get('roundTrip') != meta:
-            bad_meta[key] += count
-        elif b.get('modelsDumped') and not name.startswith('minecraft:'):
+        if 'state' not in entry or entry.get('roundTrip') is None:
+            bad_meta[key] += count  # undecodable: stays an unknown placeholder
+            continue
+        if entry['roundTrip'] != meta:
+            alias_meta[key] += count  # decodes to the state of another meta (rendered as that state)
+        if b.get('modelsDumped') and not name.startswith('minecraft:'):
+            # Neighbour-derived properties (wall posts, pane connections) are recomputed in-world, so any
+            # state that agrees on the stored properties counts.
+            stored = b.get('storedProperties', [])
             st = entry['state']
-            match = next((s for s in b['states'] if s['props'] == st), None)
-            if match is None or not match.get('model', {}).get('layers'):
+            cands = [s for s in b['states'] if all(s['props'].get(k) == st.get(k) for k in stored)]
+            if not any(s.get('model', {}).get('layers') for s in cands):
                 no_model[key] += count
     by_mod = collections.Counter(n.split(':')[0] for n in missing_block)
     return {
         'blocksMissingFromDump': dict(missing_block.most_common()),
         'blocksMissingByMod': dict(by_mod.most_common()),
-        'metaNotRoundTripping': dict(bad_meta.most_common()),
+        'metaInvalid': dict(bad_meta.most_common()),
+        'metaAliases': dict(alias_meta.most_common()),
         'statesWithoutQuads': dict(no_model.most_common()),
     }
 

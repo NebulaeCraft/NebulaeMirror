@@ -83,6 +83,15 @@ _EXPLICIT = {
     'itemframe_background': 'item_frame', 'hay_block_side': 'hay_block_side',
     'melon_side': 'melon_side', 'melon_top': 'melon_top', 'ice': 'ice', 'glass': 'glass',
     'stone_slab_side_smooth': 'smooth_stone_slab_side',
+    'sapling_roofed_oak': 'dark_oak_sapling', 'mushroom_red': 'red_mushroom', 'mushroom_brown': 'brown_mushroom',
+    'fire_layer_0': 'fire_0', 'fire_layer_1': 'fire_1', 'double_plant_grass_bottom': 'tall_grass_bottom',
+    'double_plant_grass_top': 'tall_grass_top', 'double_plant_fern_bottom': 'large_fern_bottom',
+    'double_plant_fern_top': 'large_fern_top', 'double_plant_rose_bottom': 'rose_bush_bottom',
+    'double_plant_rose_top': 'rose_bush_top', 'double_plant_syringa_bottom': 'lilac_bottom',
+    'double_plant_syringa_top': 'lilac_top', 'double_plant_paeonia_bottom': 'peony_bottom',
+    'double_plant_paeonia_top': 'peony_top', 'double_plant_sunflower_bottom': 'sunflower_bottom',
+    'double_plant_sunflower_top': 'sunflower_top', 'double_plant_sunflower_front': 'sunflower_front',
+    'double_plant_sunflower_back': 'sunflower_back',
 }
 
 _PATTERNS = [

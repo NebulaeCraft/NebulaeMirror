@@ -1,0 +1,59 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+// Output of mirror/generator (python3 -I mirror/generator/generate.py ...). Override with -PgenDir=...
+def genDir = file(project.findProperty('genDir') ?: "${rootDir}/../../work/gen")
+
+repositories {
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.dir genDir
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+    // Generated block definitions, mappings and assets are bundled into the jar.
+    from(new File(genDir, 'mirror')) { into 'nebulaemirror/mirror' }
+    from(new File(genDir, 'assets')) { into 'assets' }
+    from(new File(genDir, 'data')) { into 'data' }
+    doFirst {
+        if (!new File(genDir, 'mirror/blocks.json').isFile()) {
+            throw new GradleException("No generator output in ${genDir}; run mirror/generator/generate.py first")
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+loom {
+    runs {
+        // Headless check: registers everything, bakes every mesh, writes a report, exits.
+        selftestClient {
+            client()
+            name 'Self-test Client'
+            vmArg '-Dnebulaemirror.selftest=true'
+            runDir 'run/selftest'
+        }
+    }
+}

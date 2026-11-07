@@ -136,6 +136,19 @@ def standard_fixture(root, overrides=None):
              [('up', 'bool', ['true', 'false'])] + conn + [('variant', 'enum', ['plain'])],
              lambda s: 0 if s['up'] == 'true' and all(s[d] == 'false' for d in
                                                        ('north', 'east', 'south', 'west')) else None)
+    def door_meta(s):
+        if s['half'] == 'lower' and s['hinge'] == 'left' and s['powered'] == 'false':
+            return H.index(s['facing']) + 4 * (s['open'] == 'true')
+        if s['half'] == 'upper' and s['facing'] == 'north' and s['open'] == 'false':
+            return 8 + (s['hinge'] == 'right') + 2 * (s['powered'] == 'true')
+        return None
+    fx.block('testmod:door', ['net.minecraft.block.BlockDoor'],
+             [('facing', 'direction', H), ('half', 'enum', ['upper', 'lower']), ('hinge', 'enum', ['left', 'right']),
+              ('open', 'bool', ['true', 'false']), ('powered', 'bool', ['true', 'false'])], door_meta)
+    fx.block('testmod:post_fence', ['net.minecraft.block.BlockFence'], conn + [('up', 'bool', ['true', 'false'])],
+             lambda s: 0 if all(s[d] == 'false' for d in ('north', 'east', 'south', 'west', 'up')) else None)
+    fx.block('testmod:blarg_slab', ['x.Slab'], [('half', 'enum', ['top', 'bottom']), ('prop', 'enum', ['blarg'])],
+             lambda s: 8 * (s['half'] == 'top'))
     fx.block('testmod:smooth', ['x.Smooth'], [], lambda s: 0)
     fx.block('testmod:log', ['x.Log'], [('axis', 'enum', ['y', 'x', 'z'])],
              lambda s: {'y': 0, 'x': 4, 'z': 8}[s['axis']])
@@ -193,6 +206,27 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual(self.forward['testmod:rail_fence']['metas']['1'],
                          {'north': 'false', 'east': 'false', 'south': 'false', 'west': 'false', 'color': 'blue'})
 
+    def test_door_writability_is_per_half(self):
+        st = self.blocks['testmod:door']['states']
+        # every facing/open combination is storable on the lower half, whatever hinge/powered say
+        self.assertNotIn('writable', st['facing=east,half=lower,hinge=right,open=true,powered=true'])
+        # upper halves only store hinge/powered
+        self.assertNotIn('writable', st['facing=west,half=upper,hinge=right,open=true,powered=true'])
+
+    def test_computed_extra_property_stays_writable(self):
+        st = self.blocks['testmod:post_fence']['states']
+        self.assertFalse(any(s.get('writable') is False for s in st.values()))
+
+    def test_unreachable_stored_combination_is_unwritable(self):
+        # rail_fence stores color; all colours reachable -> writable. deco: all 8 metas reachable.
+        self.assertFalse(any(s.get('writable') is False for s in self.blocks['testmod:deco']['states'].values()))
+
+    def test_single_valued_property_is_dropped(self):
+        b = self.blocks['testmod:blarg_slab']
+        self.assertEqual([p['name'] for p in b['properties']], ['half'])
+        self.assertEqual(self.forward['testmod:blarg_slab']['metas']['8'], {'half': 'top'})
+        self.assertEqual(len(b['states']), 2)
+
     def test_stairs_shape_is_derived(self):
         rev = self.reverse['testmod:brick_stairs']
         self.assertEqual(rev['keys'], ['facing', 'half'])
@@ -204,8 +238,8 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual(b['archetype'], 'wall')
         self.assertEqual(len(b['states']), 2 * 3 ** 4)
         bs = self.fx.read('assets/testmod/blockstates/old_wall.json')['variants']
-        low = bs['east=none,north=low,south=none,up=true,variant=plain,west=none']
-        tall = bs['east=none,north=tall,south=none,up=true,variant=plain,west=none']
+        low = bs['east=none,north=low,south=none,up=true,west=none']
+        tall = bs['east=none,north=tall,south=none,up=true,west=none']
         self.assertEqual(low, tall)
 
     def test_override_to_vanilla(self):

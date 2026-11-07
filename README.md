@@ -7,7 +7,8 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] Coverage scanner `ops/scan/` (1.12 world → (name, meta) / TE / entity stats, plus dump coverage check)
 - [x] 1.12 dumper `legacy/dumper/` (exports block properties, meta table, baked quads, shapes, textures, lang)
 - [x] Generator `mirror/generator/` (dump → 1.21 block definitions, models, forward/reverse mapping), see [docs/generator.md](docs/generator.md)
-- [ ] Mirror mod `mirror/mod/` (Fabric 1.21.1)
+- [x] Mirror mod `mirror/mod/` (Fabric 1.21.1): block registration, mesh models, items/creative tabs, legacy TE storage, unknown placeholder, see [docs/mirror-mod.md](docs/mirror-mod.md)
+- [x] FutureMC/Quark → 1.21 vanilla overrides (`mapping/overrides/`)
 - [ ] Importer (DFU + modded block substitution)
 - [ ] Bridge mod `legacy/bridge/` (zone lock, patch apply/rollback)
 
@@ -18,7 +19,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 | `data/` | Origin server snapshots: world zip, config, mods (gitignored) |
 | `legacy/dumper/` | Forge 1.12.2 client mod: exports block appearance data |
 | `legacy/bridge/` | Forge 1.12.2 server mod (to do) |
-| `mirror/mod/` | Fabric 1.21.1 mod (to do) |
+| `mirror/mod/` | Fabric 1.21.1 mod (Gradle 9.8 + Loom, Mojang mappings) |
 | `mirror/generator/` | dump → mirror definition generator (Python, stdlib only) |
 | `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |
 | `mapping/snapshots/` | Registry/mapping snapshots for diffing new blocks |

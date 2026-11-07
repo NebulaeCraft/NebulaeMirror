@@ -23,6 +23,7 @@ while read -r kind url sha; do
   fi
 done < urls.txt
 "$JAVA" -DbundlerMainClass=net.minecraft.data.Main -jar server.jar --reports --output generated > datagen.log 2>&1
-unzip -l client.jar 'assets/minecraft/textures/block/*' | awk '{print $4}' | grep '\.png$' \
+# block/ and item/ textures: the 1.21 block atlas stitches both directories.
+unzip -l client.jar 'assets/minecraft/textures/block/*' 'assets/minecraft/textures/item/*' | awk '{print $4}' | grep '\.png$' \
   | sed 's#assets/minecraft/textures/##; s#\.png$##' | sort > textures-block.txt
 echo "blocks: $(python3 -c "import json;print(len(json.load(open('generated/reports/blocks.json'))))"), textures: $(wc -l < textures-block.txt)"

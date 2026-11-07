@@ -1,0 +1,507 @@
+{
+ "comment": "FutureMC backports 1.13-1.16 blocks; in the mirror they are the real 1.21 blocks. Reverse mapping lets builders use these vanilla blocks and have them written back as FutureMC blocks.",
+ "blocks": {
+  "futuremc:acacia_standing_sign": {
+   "target": "minecraft:acacia_sign",
+   "props": {
+    "rotation": "rotation"
+   }
+  },
+  "futuremc:acacia_trapdoor": {
+   "target": "minecraft:acacia_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "futuremc:acacia_wall_sign": {
+   "target": "minecraft:acacia_wall_sign",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:acacia_wood": {
+   "target": "minecraft:acacia_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:ancient_debris": {
+   "target": "minecraft:ancient_debris"
+  },
+  "futuremc:andesite_wall": {
+   "target": "minecraft:andesite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:bamboo": {
+   "target": "minecraft:bamboo",
+   "props": {
+    "leaves": "leaves",
+    "thick": "age",
+    "mature": "stage"
+   },
+   "values": {
+    "thick": {
+     "false": "0",
+     "true": "1"
+    },
+    "mature": {
+     "false": "0",
+     "true": "1"
+    }
+   }
+  },
+  "futuremc:barrel": {
+   "target": "minecraft:barrel",
+   "props": {
+    "facing": "facing",
+    "open": "open"
+   }
+  },
+  "futuremc:bee_nest": {
+   "target": "minecraft:bee_nest",
+   "props": {
+    "facing": "facing",
+    "full": "honey_level"
+   },
+   "values": {
+    "full": {
+     "false": "0",
+     "true": "5"
+    }
+   }
+  },
+  "futuremc:beehive": {
+   "target": "minecraft:beehive",
+   "props": {
+    "facing": "facing",
+    "full": "honey_level"
+   },
+   "values": {
+    "full": {
+     "false": "0",
+     "true": "5"
+    }
+   }
+  },
+  "futuremc:bell": {
+   "target": "minecraft:bell",
+   "props": {
+    "attachment": "attachment",
+    "facing": "facing"
+   }
+  },
+  "futuremc:birch_standing_sign": {
+   "target": "minecraft:birch_sign",
+   "props": {
+    "rotation": "rotation"
+   }
+  },
+  "futuremc:birch_trapdoor": {
+   "target": "minecraft:birch_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "futuremc:birch_wall_sign": {
+   "target": "minecraft:birch_wall_sign",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:birch_wood": {
+   "target": "minecraft:birch_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:blast_furnace": {
+   "target": "minecraft:blast_furnace",
+   "props": {
+    "facing": "facing",
+    "lit": "lit"
+   }
+  },
+  "futuremc:blue_ice": {
+   "target": "minecraft:blue_ice"
+  },
+  "futuremc:brick_wall": {
+   "target": "minecraft:brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:campfire": {
+   "target": "minecraft:campfire",
+   "props": {
+    "facing": "facing",
+    "lit": "lit",
+    "signal": "signal_fire"
+   }
+  },
+  "futuremc:cartography_table": {
+   "target": "minecraft:cartography_table",
+   "props": {
+    "facing": null
+   },
+   "comment": "1.21 has no facing; written back as meta of the first facing"
+  },
+  "futuremc:chain": {
+   "target": "minecraft:chain"
+  },
+  "futuremc:composter": {
+   "target": "minecraft:composter",
+   "props": {
+    "level": "level"
+   }
+  },
+  "futuremc:cornflower": {
+   "target": "minecraft:cornflower"
+  },
+  "futuremc:dark_oak_standing_sign": {
+   "target": "minecraft:dark_oak_sign",
+   "props": {
+    "rotation": "rotation"
+   }
+  },
+  "futuremc:dark_oak_trapdoor": {
+   "target": "minecraft:dark_oak_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "futuremc:dark_oak_wall_sign": {
+   "target": "minecraft:dark_oak_wall_sign",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:dark_oak_wood": {
+   "target": "minecraft:dark_oak_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:diorite_wall": {
+   "target": "minecraft:diorite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:end_stone_brick_wall": {
+   "target": "minecraft:end_stone_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:fletching_table": {
+   "target": "minecraft:fletching_table",
+   "props": {
+    "facing": null
+   },
+   "comment": "1.21 has no facing; written back as meta of the first facing"
+  },
+  "futuremc:granite_wall": {
+   "target": "minecraft:granite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:grindstone": {
+   "target": "minecraft:grindstone",
+   "props": {
+    "face": "face",
+    "facing": "facing"
+   }
+  },
+  "futuremc:honey_block": {
+   "target": "minecraft:honey_block"
+  },
+  "futuremc:honeycomb_block": {
+   "target": "minecraft:honeycomb_block"
+  },
+  "futuremc:jungle_standing_sign": {
+   "target": "minecraft:jungle_sign",
+   "props": {
+    "rotation": "rotation"
+   }
+  },
+  "futuremc:jungle_trapdoor": {
+   "target": "minecraft:jungle_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "futuremc:jungle_wall_sign": {
+   "target": "minecraft:jungle_wall_sign",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:jungle_wood": {
+   "target": "minecraft:jungle_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:lantern": {
+   "target": "minecraft:lantern",
+   "props": {
+    "hanging": "hanging"
+   }
+  },
+  "futuremc:lily_of_the_valley": {
+   "target": "minecraft:lily_of_the_valley"
+  },
+  "futuremc:loom": {
+   "target": "minecraft:loom",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:mossy_stone_brick_wall": {
+   "target": "minecraft:mossy_stone_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:nether_brick_wall": {
+   "target": "minecraft:nether_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:netherite_block": {
+   "target": "minecraft:netherite_block"
+  },
+  "futuremc:oak_wood": {
+   "target": "minecraft:oak_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:prismarine_wall": {
+   "target": "minecraft:prismarine_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:red_nether_brick_wall": {
+   "target": "minecraft:red_nether_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:red_sandstone_wall": {
+   "target": "minecraft:red_sandstone_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:sandstone_wall": {
+   "target": "minecraft:sandstone_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:scaffolding": {
+   "target": "minecraft:scaffolding",
+   "props": {
+    "bottom": "bottom",
+    "distance": "distance"
+   }
+  },
+  "futuremc:smithing_table": {
+   "target": "minecraft:smithing_table",
+   "props": {
+    "facing": null
+   },
+   "comment": "1.21 has no facing; written back as meta of the first facing"
+  },
+  "futuremc:smoker": {
+   "target": "minecraft:smoker",
+   "props": {
+    "facing": "facing",
+    "lit": "lit"
+   }
+  },
+  "futuremc:smooth_quartz": {
+   "target": "minecraft:smooth_quartz"
+  },
+  "futuremc:smooth_red_sandstone": {
+   "target": "minecraft:smooth_red_sandstone"
+  },
+  "futuremc:smooth_sandstone": {
+   "target": "minecraft:smooth_sandstone"
+  },
+  "futuremc:smooth_stone": {
+   "target": "minecraft:smooth_stone"
+  },
+  "futuremc:soul_fire_lantern": {
+   "target": "minecraft:soul_lantern",
+   "props": {
+    "hanging": "hanging"
+   }
+  },
+  "futuremc:soul_fire_torch": {
+   "target": "minecraft:soul_wall_torch",
+   "props": {
+    "facing": "facing"
+   },
+   "metas": {
+    "5": {
+     "@target": "minecraft:soul_torch"
+    }
+   }
+  },
+  "futuremc:soul_soil": {
+   "target": "minecraft:soul_soil"
+  },
+  "futuremc:spruce_standing_sign": {
+   "target": "minecraft:spruce_sign",
+   "props": {
+    "rotation": "rotation"
+   }
+  },
+  "futuremc:spruce_trapdoor": {
+   "target": "minecraft:spruce_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "futuremc:spruce_wall_sign": {
+   "target": "minecraft:spruce_wall_sign",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:spruce_wood": {
+   "target": "minecraft:spruce_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stone_brick_wall": {
+   "target": "minecraft:stone_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "futuremc:stonecutter": {
+   "target": "minecraft:stonecutter",
+   "props": {
+    "facing": "facing"
+   }
+  },
+  "futuremc:stripped_acacia_log": {
+   "target": "minecraft:stripped_acacia_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_acacia_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_acacia_wood": {
+   "target": "minecraft:stripped_acacia_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stripped_birch_log": {
+   "target": "minecraft:stripped_birch_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_birch_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_birch_wood": {
+   "target": "minecraft:stripped_birch_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stripped_dark_oak_log": {
+   "target": "minecraft:stripped_dark_oak_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_dark_oak_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_dark_oak_wood": {
+   "target": "minecraft:stripped_dark_oak_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stripped_jungle_log": {
+   "target": "minecraft:stripped_jungle_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_jungle_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_jungle_wood": {
+   "target": "minecraft:stripped_jungle_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stripped_oak_log": {
+   "target": "minecraft:stripped_oak_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_oak_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_oak_wood": {
+   "target": "minecraft:stripped_oak_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:stripped_spruce_log": {
+   "target": "minecraft:stripped_spruce_log",
+   "props": {
+    "axis": "axis"
+   },
+   "metas": {
+    "12": {
+     "@target": "minecraft:stripped_spruce_wood",
+     "axis": "y"
+    }
+   },
+   "comment": "axis=none (bark on all six sides) is stripped wood in 1.21"
+  },
+  "futuremc:stripped_spruce_wood": {
+   "target": "minecraft:stripped_spruce_wood",
+   "props": {
+    "axis": "axis"
+   }
+  },
+  "futuremc:sweet_berry_bush": {
+   "target": "minecraft:sweet_berry_bush",
+   "props": {
+    "age": "age"
+   }
+  },
+  "futuremc:wither_rose": {
+   "target": "minecraft:wither_rose"
+  }
+ }
+}

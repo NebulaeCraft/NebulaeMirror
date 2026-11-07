@@ -13,6 +13,7 @@ Output layout (`--out`):
   report.json / report.md
 """
 import itertools
+import json
 import os
 import shutil
 import time
@@ -53,6 +54,7 @@ class Generator:
         self.blocks = []
         self.forward = {}
         self.reverse = {}
+        self._reverse_sources = {}
         self.lang = {}  # ns -> code -> {key: text}
 
     # ------------------------------------------------------------------ driver
@@ -92,6 +94,7 @@ class Generator:
             if not any(b['name'] == name for b in self.dump.index):
                 self.report.warn(name, 'override for a block that is not in the dump')
 
+        self._build_reverse()
         self._self_check()
         self._write_outputs()
         self.report.count('seconds', int(time.time() - start))
@@ -123,8 +126,24 @@ class Generator:
         own = list(arch.props) if arch else []
         taken = {p.name for p in own}
         own_legacy = {p.legacy for p in own if p.legacy}
-        extras = [make_extra(legacy_defs[n], taken) for n in legacy_defs if n not in own_legacy]
+        # Single-valued 1.12 properties (Quark's prop=blarg, NebulaeCraft subtype=subtype0 only) carry no
+        # information and 1.21 rejects them: drop them, and re-add the constant when mapping back to 1.12.
+        constants = {n: str(d['values'][0]) for n, d in legacy_defs.items()
+                     if n not in own_legacy and len(d['values']) == 1}
+        extras = [make_extra(legacy_defs[n], taken) for n in legacy_defs if n not in own_legacy and n not in constants]
         keyed_own = [p for p in own if not p.ignored]
+        # A mirror state is writable to 1.12 when its *stored* properties match some meta-reachable state.
+        # Properties 1.12 computes (connections, stair shape, Sakura fence 'up', Railcraft post links) are
+        # recomputed by the origin after write-back, so they don't restrict writability.
+        writable_keys = {p.name for p in keyed_own if p.legacy in stored} | \
+                        {e.name for e in extras if e.legacy in stored}
+
+        def project(p121):
+            keys = writable_keys
+            if arch is not None and arch.pair_merge and 'half' in p121:
+                # Doors: the lower half stores facing/open, the upper half hinge/powered.
+                keys = keys & ({'half', 'facing', 'open'} if p121['half'] == 'lower' else {'half', 'hinge', 'powered'})
+            return variant_key({k: v for k, v in p121.items() if k in keys})
         self.report.count('archetype.' + (arch.name if arch else 'generic'))
 
         def to_121(legacy_props):
@@ -138,7 +157,7 @@ class Generator:
             return out
 
         def to_legacy(p121):
-            out = {}
+            out = dict(constants)
             for p in keyed_own:
                 if p.legacy is not None:
                     out[p.legacy] = p.legacy_value(p121[p.name])
@@ -146,9 +165,17 @@ class Generator:
                 out[e.legacy] = e.legacy_value(p121[e.name])
             return out
 
-        # 1.21 state space (variant keys never include ignored props such as waterlogged).
-        if arch is None:
+        # 1.21 state space (variant keys never include ignored props such as waterlogged). 1.21 creates every
+        # combination of the properties, so cover them all; ones no dumped state has borrow the nearest state.
+        product = 1
+        for e in extras:
+            product *= len(e.values)
+        if arch is None and product > 4096:
             combos = [to_121(s['props']) for s in states]
+            self.report.warn(name, 'property space too large to enumerate; only dumped states have models')
+        elif arch is None:
+            names = [e.name for e in extras]
+            combos = [dict(zip(names, vs)) for vs in itertools.product(*[e.values for e in extras])]
         else:
             extra_combos = []
             seen = set()
@@ -168,9 +195,20 @@ class Generator:
                     combos.append(c)
 
         default_legacy = block['defaultState']
+        if variant_key(default_legacy) not in by_props:
+            # e.g. extrautils2:pipe: getDefaultState() is never produced by any meta; use meta 0's state.
+            m0 = next((m for m in block['metaTable'] if m.get('roundTrip') == m['meta'] and 'state' in m), None)
+            default_legacy = m0['state'] if m0 else states[0]['props']
+            self.report.warn(name, 'default state not reachable from any meta; meta 0 state used as default')
         default_state = by_props.get(variant_key(default_legacy), states[0])
-        variants, physics = {}, {}
-        layers, tints, emissive, fallbacks, empty, missing_tex = set(), set(), False, 0, 0, False
+        default_121 = to_121(default_legacy)
+        # States the world can actually hold. Anything else can be placed in the mirror but not written back.
+        reachable = set()
+        for m in block['metaTable']:
+            if m.get('roundTrip') == m['meta'] and 'state' in m:
+                reachable.add(project(to_121(m['state'])))
+        variants, physics, chosen = {}, {}, {}
+        layers, tints, emissive, fallbacks, empty, missing_tex, unwritable = set(), set(), False, 0, 0, False, 0
         for p121 in combos:
             legacy = to_legacy(p121)
             s = by_props.get(variant_key(legacy))
@@ -179,8 +217,12 @@ class Generator:
                 fallbacks += 1
             mesh_id, info = self._mesh(s)
             key = variant_key(p121)
+            chosen[key] = s
             variants[key] = {'model': mesh_id}
             physics[key] = self._physics(s, generic=arch is None)
+            if project(p121) not in reachable:
+                physics[key]['writable'] = False
+                unwritable += 1
             layers |= info['layers']
             tints |= info['tints']
             emissive |= info['emissive']
@@ -193,11 +235,15 @@ class Generator:
             self.report.warn(name, 'states without quads (TESR / built-in / invisible)')
         if missing_tex:
             self.report.warn(name, 'model uses a texture that is missing in 1.12 too (shows as missing texture)')
-        if arch is None:
-            # Single-valued properties can't vary, so "not encoded in meta" is harmless for them.
-            derived = [p for p in block.get('derivedProperties', []) if len(legacy_defs[p]['values']) > 1]
-            if derived:
-                self.report.warn(name, 'generic block with neighbour-derived 1.12 properties (mirror shows them as stored)')
+        if unwritable:
+            self.report.count('states.unwritable', unwritable)
+            self.report.warn(name, 'some states have stored-property combinations no 1.12 meta can hold '
+                                   '(marked writable=false)')
+        if any(len(legacy_defs[p]['values']) > 1 for p in block.get('derivedProperties', [])
+               if not (arch and p in own_legacy)):
+            # Computed by getActualState from neighbours/TE: the mirror can't recompute these, so the
+            # imported block shows the meta state's values.
+            self.report.warn(name, 'look depends on 1.12 getActualState (neighbours/TE); mirror shows stored form')
         if arch and arch.pair_merge:
             self.report.item('pairMergeBlocks', bid)
         self.report.count('states.generated', len(combos))
@@ -206,20 +252,38 @@ class Generator:
         write_json(os.path.join(self.assets, ns, 'blockstates', path + '.json'), {'variants': variants}, pretty=False)
 
         # forward / reverse
-        metas = {}
+        metas, canonical, aliases = {}, {}, {}
         for m in block['metaTable']:
-            if m.get('roundTrip') != m['meta']:
-                continue
+            if 'state' not in m or m.get('roundTrip') is None:
+                continue  # invalid meta: the importer keeps it as an unknown placeholder
             metas[str(m['meta'])] = to_121(m['state'])
-        self.forward[name] = {'target': bid, 'metas': metas}
+            if m['roundTrip'] == m['meta']:
+                canonical[str(m['meta'])] = metas[str(m['meta'])]
+            else:
+                # Alias meta (e.g. chisel marble2 8..15 -> variation 7): render as the decoded state,
+                # write back as the canonical meta. Unchanged blocks are never written back.
+                aliases[str(m['meta'])] = m['roundTrip']
+        fw = {'target': bid, 'metas': metas}
+        if aliases:
+            fw['aliases'] = aliases
+            self.report.count('forward.aliasMetas', len(aliases))
+        self.forward[name] = fw
         keys = [p.name for p in keyed_own if p.legacy in stored] + [e.name for e in extras if e.legacy in stored]
-        self._add_reverse(bid, keys, name, metas, override=False)
+        self._add_reverse(bid, keys, name, canonical, override=False)
 
+        block_tints = self._tints(name, states, tints)
+        for t, info in block_tints.items():
+            if info['kind'] != 'state':
+                continue
+            # Colour depends on the state (Railcraft's 16-colour posts/tanks): store it per variant.
+            for key, src in chosen.items():
+                c = (src.get('colors') or {}).get(t)
+                if c and 'plains' in c:
+                    physics[key].setdefault('tints', {})[t] = c['plains'] & 0xFFFFFF
         material = default_state.get('material', 'ROCK')
         names = self._names(block)
         prop_json = [self._own_json(p, p.legacy in stored) for p in own] + \
                     [e.to_json(e.legacy in stored) for e in extras]
-        default_121 = to_121(default_legacy)
         self.blocks.append({
             'id': bid,
             'source': name,
@@ -232,7 +296,7 @@ class Generator:
             'emissive': emissive,
             'offset': block.get('offsetType') if block.get('offsetType') not in (None, 'NONE') else None,
             'legacyBlockEntity': any(s.get('hasTileEntity') for s in states),
-            'tints': self._tints(states, tints),
+            'tints': block_tints,
             'states': physics,
             'items': self._items(block, to_121),
             'names': names,
@@ -328,7 +392,7 @@ class Generator:
                 d['collision'] = self._shape(s['collision'])
         return d
 
-    def _tints(self, states, indices):
+    def _tints(self, name, states, indices):
         out = {}
         plains = self.dump.biomes.get('minecraft:plains', {})
         for t in sorted(indices):
@@ -342,6 +406,11 @@ class Generator:
                 out[str(t)] = {'kind': 'constant', 'color': -1}
                 continue
             color = info['plains'] & 0xFFFFFF
+            per_state = {(st.get('colors') or {}).get(str(t), {}).get('plains') for st in states
+                         if 'plains' in (st.get('colors') or {}).get(str(t), {})}
+            if len(per_state) > 1 and not info.get('biomeDependent'):
+                out[str(t)] = {'kind': 'state', 'color': color}
+                continue
             if info.get('biomeDependent'):
                 if color == plains.get('grassColor', -2) & 0xFFFFFF:
                     out[str(t)] = {'kind': 'grass'}
@@ -349,7 +418,7 @@ class Generator:
                     out[str(t)] = {'kind': 'foliage'}
                 else:
                     out[str(t)] = {'kind': 'constant', 'color': color}
-                    self.report.warn('', 'biome-dependent tint not recognised as grass/foliage; plains colour used')
+                    self.report.warn(name, 'biome-dependent tint not recognised as grass/foliage; plains colour used')
             else:
                 out[str(t)] = {'kind': 'constant', 'color': color}
         return out
@@ -413,7 +482,12 @@ class Generator:
         if cands:
             return closest(cands), 'name'
         m = next((m for m in block['metaTable'] if m['meta'] == item_meta and m.get('roundTrip') == item_meta), None)
-        return (m['state'], 'meta') if m else (None, None)
+        if m:
+            return m['state'], 'meta'
+        if len(states) == 1:
+            # One block state, subtypes differ only by TE data (extrautils2:opinium tiers).
+            return states[0]['props'], 'single'
+        return None, None
 
     def _items(self, block, to_121):
         ns = sanitize_id(block['name']).split(':')[0]
@@ -447,47 +521,74 @@ class Generator:
     def _map_to_target(self, block, rule, generated_ids):
         name = block['name']
         target = rule['target']
-        metas = {}
+        metas, meta_targets, aliases = {}, {}, {}
+        canonical = {}  # target -> {meta: props}
         problems = []
         for m in block['metaTable']:
-            if m.get('roundTrip') != m['meta']:
+            if 'state' not in m or m.get('roundTrip') is None:
                 continue
-            p = ovr.target_props(rule, m['state'], m['meta'])
+            p = ovr.target_props(rule, m['state'], m['meta'], m['roundTrip'])
             if p is None:
                 continue
-            problems += ovr.validate_target(rule, p, self.vanilla, generated_ids)
+            tgt = p.pop('@target', target)
+            problems += ovr.validate_target(dict(rule, target=tgt), p, self.vanilla, generated_ids)
             metas[str(m['meta'])] = p
+            if tgt != target:
+                meta_targets[str(m['meta'])] = tgt
+            if m['roundTrip'] == m['meta']:
+                canonical.setdefault(tgt, {})[str(m['meta'])] = p
+            else:
+                aliases[str(m['meta'])] = m['roundTrip']
         if problems:
             for pr in sorted(set(problems)):
                 self.report.error('override %s: %s' % (name, pr))
             return
-        self.forward[name] = {'target': target, 'metas': metas, 'override': True}
+        fw = {'target': target, 'metas': metas, 'override': True}
+        if meta_targets:
+            fw['metaTargets'] = meta_targets
+        if aliases:
+            fw['aliases'] = aliases
+        self.forward[name] = fw
         self.report.count('blocks.mappedByOverride')
         if rule.get('reverse', True):
-            keys = sorted({k for p in metas.values() for k in p})
-            self._add_reverse(target, keys, name, metas, override=True)
+            for tgt, cmetas in canonical.items():
+                prio = self.PRIO_OVERRIDE if tgt == target else self.PRIO_REDIRECT
+                # Only properties that vary across the canonical metas are stored by 1.12 (FutureMC barrel
+                # keeps 'open' in its TE, so alias metas may say open=true while every meta stores false).
+                keys = sorted(k for k in {k for p in cmetas.values() for k in p}
+                              if len({p.get(k) for p in cmetas.values()}) > 1)
+                self._add_reverse(tgt, keys, name, cmetas, override=True, priority=prio)
 
     # ------------------------------------------------------------------ reverse
 
-    def _add_reverse(self, target, keys, name, metas, override):
-        entry = self.reverse.setdefault(target, {'keys': keys, 'map': {}})
-        if entry['keys'] != keys:
-            # Several 1.12 blocks map onto one target with different key sets: widen to the union.
-            merged = sorted(set(entry['keys']) | set(keys))
-            self.report.warn(target, 'reverse keys widened because several 1.12 blocks share this target')
-            entry['keys'] = merged
-            keys = merged
-        if override:
-            entry['override'] = True
-        for meta, p in metas.items():
-            k = variant_key({key: p[key] for key in keys if key in p})
-            if k in entry['map']:
-                prev = entry['map'][k]
-                if prev != [name, int(meta)]:
+    # Priorities when several 1.12 (name, meta) produce the same 1.21 state: lower wins.
+    PRIO_OWN, PRIO_OVERRIDE, PRIO_REDIRECT = 0, 1, 2
+
+    def _add_reverse(self, target, keys, name, metas, override, priority=None):
+        """Collect reverse candidates; the maps are built once everything is known (_build_reverse)."""
+        if priority is None:
+            priority = self.PRIO_OVERRIDE if override else self.PRIO_OWN
+        src = self._reverse_sources.setdefault(target, {'keys': set(), 'override': False, 'entries': []})
+        src['keys'] |= set(keys)
+        src['override'] |= override
+        for meta, props in metas.items():
+            src['entries'].append((priority, len(src['entries']), name, int(meta), props))
+
+    def _build_reverse(self):
+        for target, src in sorted(self._reverse_sources.items()):
+            keys = sorted(src['keys'])
+            entry = {'keys': keys, 'map': {}}
+            if src['override']:
+                entry['override'] = True
+            for priority, _, name, meta, props in sorted(src['entries']):
+                k = variant_key({key: props[key] for key in keys if key in props})
+                prev = entry['map'].get(k)
+                if prev is None:
+                    entry['map'][k] = [name, meta]
+                elif prev != [name, meta]:
                     self.report.item('reverseAmbiguous', '%s[%s] <- %s:%s (kept %s:%s)' % (
                         target, k, name, meta, prev[0], prev[1]))
-                continue
-            entry['map'][k] = [name, int(meta)]
+            self.reverse[target] = entry
 
     # ------------------------------------------------------------------ self check
 
@@ -496,10 +597,10 @@ class Generator:
         by_id = {b['id']: b for b in self.blocks}
         # 1. every forward meta is a legal state and comes back through reverse to the same (name, meta)
         for name, fw in self.forward.items():
-            target = fw['target']
-            rev = self.reverse.get(target)
-            block = by_id.get(target)
             for meta, props in fw['metas'].items():
+                target = fw.get('metaTargets', {}).get(meta, fw['target'])
+                rev = self.reverse.get(target)
+                block = by_id.get(target)
                 if block is not None:
                     allowed = {p['name']: p['values'] for p in block['properties'] if not p.get('ignored')}
                     bad = [k for k, v in props.items() if k not in allowed or v not in allowed[k]]
@@ -510,10 +611,11 @@ class Generator:
                     if fw.get('override') and not self.rules.get(name, {}).get('reverse', True):
                         continue
                     self.report.error('%s: no reverse entry for target %s' % (name, target))
-                    break
+                    continue
                 k = variant_key({key: props[key] for key in rev['keys'] if key in props})
                 back = rev['map'].get(k)
-                if back != [name, int(meta)]:
+                expect_meta = int(fw.get('aliases', {}).get(meta, meta))
+                if back != [name, expect_meta]:
                     if back is not None and fw.get('override'):
                         continue  # deliberate many-to-one onto an existing block, listed in reverseAmbiguous
                     self.report.error('%s:%s round trip -> %s' % (name, meta, back))
@@ -527,8 +629,8 @@ class Generator:
             have = len(b['states'])
             if b['archetype'] != 'generic' and have != expected:
                 self.report.error('%s: %d variants, expected %d' % (b['id'], have, expected))
-            if b['archetype'] == 'generic' and have > expected:
-                self.report.error('%s: %d variants exceed the %d possible' % (b['id'], have, expected))
+            if b['archetype'] == 'generic' and have != expected and expected <= 4096:
+                self.report.error('%s: %d variants, expected %d' % (b['id'], have, expected))
             if variant_key(b['default']) not in b['states']:
                 self.report.error('%s: default state %s has no variant' % (b['id'], b['default']))
         self.report.count('check.blocks', len(self.blocks))
@@ -551,6 +653,25 @@ class Generator:
             'overrides': sorted(self.rules),
             'generated': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
         })
+        # Vanilla behaviour classes connect through these tags (WallBlock -> #walls, FenceBlock -> #fences, ...).
+        tag_of = {'wall': 'walls', 'fence': 'fences', 'fence_gate': 'fence_gates'}
+        tags = {}
+        for b in self.blocks:
+            t = tag_of.get(b['archetype'])
+            if t:
+                tags.setdefault(t, []).append(b['id'])
+        for t, ids in tags.items():
+            write_json(os.path.join(self.out, 'data', 'minecraft', 'tags', 'block', t + '.json'),
+                       {'replace': False, 'values': sorted(ids)})
+        # Inventory icon of each block item: the mesh of its first writable item state (else default state).
+        item_meshes = {}
+        for b in self.blocks:
+            ns, path = b['id'].split(':', 1)
+            with open(os.path.join(self.assets, ns, 'blockstates', path + '.json'), encoding='utf8') as f:
+                variants = json.load(f)['variants']
+            state = next((i['state'] for i in b['items'] if 'state' in i), b['default'])
+            item_meshes[b['id']] = variants.get(variant_key(state), variants[variant_key(b['default'])])['model']
+        write_json(os.path.join(self.out, 'mirror', 'item_meshes.json'), item_meshes, pretty=False)
         for ns, langs in self.lang.items():
             for code, entries in langs.items():
                 write_json(os.path.join(self.assets, ns, 'lang', code + '.json'), dict(sorted(entries.items())))

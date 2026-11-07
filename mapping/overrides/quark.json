@@ -1,0 +1,434 @@
+{
+ "comment": "Quark 1.12 blocks that are the same block as a 1.21 vanilla one (wooden buttons/plates/trapdoors, stairs/slabs/walls of vanilla stones). Quark-only blocks (vertical slabs, stained planks, candles, ...) are generated.",
+ "blocks": {
+  "quark:acacia_button": {
+   "target": "minecraft:acacia_button",
+   "state": {
+    "face": "wall"
+   },
+   "props": {
+    "facing": "facing",
+    "powered": "powered"
+   },
+   "values": {
+    "facing": {
+     "up": "north",
+     "down": "north"
+    }
+   },
+   "metas": {
+    "0": {
+     "face": "ceiling"
+    },
+    "8": {
+     "face": "ceiling"
+    },
+    "5": {
+     "face": "floor"
+    },
+    "13": {
+     "face": "floor"
+    }
+   },
+   "comment": "1.12 facing up/down = attached to floor/ceiling"
+  },
+  "quark:acacia_pressure_plate": {
+   "target": "minecraft:acacia_pressure_plate",
+   "props": {
+    "powered": "powered"
+   }
+  },
+  "quark:acacia_trapdoor": {
+   "target": "minecraft:acacia_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "quark:birch_button": {
+   "target": "minecraft:birch_button",
+   "state": {
+    "face": "wall"
+   },
+   "props": {
+    "facing": "facing",
+    "powered": "powered"
+   },
+   "values": {
+    "facing": {
+     "up": "north",
+     "down": "north"
+    }
+   },
+   "metas": {
+    "0": {
+     "face": "ceiling"
+    },
+    "8": {
+     "face": "ceiling"
+    },
+    "5": {
+     "face": "floor"
+    },
+    "13": {
+     "face": "floor"
+    }
+   },
+   "comment": "1.12 facing up/down = attached to floor/ceiling"
+  },
+  "quark:birch_pressure_plate": {
+   "target": "minecraft:birch_pressure_plate",
+   "props": {
+    "powered": "powered"
+   }
+  },
+  "quark:birch_trapdoor": {
+   "target": "minecraft:birch_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "quark:brick_wall": {
+   "target": "minecraft:brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:dark_oak_button": {
+   "target": "minecraft:dark_oak_button",
+   "state": {
+    "face": "wall"
+   },
+   "props": {
+    "facing": "facing",
+    "powered": "powered"
+   },
+   "values": {
+    "facing": {
+     "up": "north",
+     "down": "north"
+    }
+   },
+   "metas": {
+    "0": {
+     "face": "ceiling"
+    },
+    "8": {
+     "face": "ceiling"
+    },
+    "5": {
+     "face": "floor"
+    },
+    "13": {
+     "face": "floor"
+    }
+   },
+   "comment": "1.12 facing up/down = attached to floor/ceiling"
+  },
+  "quark:dark_oak_pressure_plate": {
+   "target": "minecraft:dark_oak_pressure_plate",
+   "props": {
+    "powered": "powered"
+   }
+  },
+  "quark:dark_oak_trapdoor": {
+   "target": "minecraft:dark_oak_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "quark:end_bricks_slab": {
+   "target": "minecraft:end_stone_brick_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:end_bricks_slab_double": {
+   "target": "minecraft:end_stone_brick_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:end_bricks_stairs": {
+   "target": "minecraft:end_stone_brick_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:end_bricks_wall": {
+   "target": "minecraft:end_stone_brick_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:jungle_button": {
+   "target": "minecraft:jungle_button",
+   "state": {
+    "face": "wall"
+   },
+   "props": {
+    "facing": "facing",
+    "powered": "powered"
+   },
+   "values": {
+    "facing": {
+     "up": "north",
+     "down": "north"
+    }
+   },
+   "metas": {
+    "0": {
+     "face": "ceiling"
+    },
+    "8": {
+     "face": "ceiling"
+    },
+    "5": {
+     "face": "floor"
+    },
+    "13": {
+     "face": "floor"
+    }
+   },
+   "comment": "1.12 facing up/down = attached to floor/ceiling"
+  },
+  "quark:jungle_pressure_plate": {
+   "target": "minecraft:jungle_pressure_plate",
+   "props": {
+    "powered": "powered"
+   }
+  },
+  "quark:jungle_trapdoor": {
+   "target": "minecraft:jungle_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "quark:prismarine_bricks_slab": {
+   "target": "minecraft:prismarine_brick_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:prismarine_bricks_slab_double": {
+   "target": "minecraft:prismarine_brick_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:prismarine_bricks_stairs": {
+   "target": "minecraft:prismarine_brick_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:prismarine_rough_wall": {
+   "target": "minecraft:prismarine_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:prismarine_slab": {
+   "target": "minecraft:prismarine_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:prismarine_slab_double": {
+   "target": "minecraft:prismarine_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:prismarine_stairs": {
+   "target": "minecraft:prismarine_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:red_nether_brick_slab": {
+   "target": "minecraft:red_nether_brick_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:red_nether_brick_slab_double": {
+   "target": "minecraft:red_nether_brick_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:red_nether_brick_stairs": {
+   "target": "minecraft:red_nether_brick_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:red_sandstone_smooth_slab": {
+   "target": "minecraft:smooth_red_sandstone_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:red_sandstone_smooth_slab_double": {
+   "target": "minecraft:smooth_red_sandstone_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:red_sandstone_wall": {
+   "target": "minecraft:red_sandstone_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:sandstone_smooth_slab": {
+   "target": "minecraft:smooth_sandstone_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:sandstone_smooth_slab_double": {
+   "target": "minecraft:smooth_sandstone_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:sandstone_wall": {
+   "target": "minecraft:sandstone_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:spruce_button": {
+   "target": "minecraft:spruce_button",
+   "state": {
+    "face": "wall"
+   },
+   "props": {
+    "facing": "facing",
+    "powered": "powered"
+   },
+   "values": {
+    "facing": {
+     "up": "north",
+     "down": "north"
+    }
+   },
+   "metas": {
+    "0": {
+     "face": "ceiling"
+    },
+    "8": {
+     "face": "ceiling"
+    },
+    "5": {
+     "face": "floor"
+    },
+    "13": {
+     "face": "floor"
+    }
+   },
+   "comment": "1.12 facing up/down = attached to floor/ceiling"
+  },
+  "quark:spruce_pressure_plate": {
+   "target": "minecraft:spruce_pressure_plate",
+   "props": {
+    "powered": "powered"
+   }
+  },
+  "quark:spruce_trapdoor": {
+   "target": "minecraft:spruce_trapdoor",
+   "props": {
+    "facing": "facing",
+    "half": "half",
+    "open": "open"
+   }
+  },
+  "quark:stone_andesite_slab": {
+   "target": "minecraft:andesite_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:stone_andesite_slab_double": {
+   "target": "minecraft:andesite_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:stone_andesite_stairs": {
+   "target": "minecraft:andesite_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:stone_andesite_wall": {
+   "target": "minecraft:andesite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:stone_diorite_slab": {
+   "target": "minecraft:diorite_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:stone_diorite_slab_double": {
+   "target": "minecraft:diorite_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:stone_diorite_stairs": {
+   "target": "minecraft:diorite_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:stone_diorite_wall": {
+   "target": "minecraft:diorite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:stone_granite_slab": {
+   "target": "minecraft:granite_slab",
+   "props": {
+    "half": "type"
+   }
+  },
+  "quark:stone_granite_slab_double": {
+   "target": "minecraft:granite_slab",
+   "state": {
+    "type": "double"
+   }
+  },
+  "quark:stone_granite_stairs": {
+   "target": "minecraft:granite_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  },
+  "quark:stone_granite_wall": {
+   "target": "minecraft:granite_wall",
+   "comment": "connections are recomputed by 1.21"
+  },
+  "quark:stone_stairs": {
+   "target": "minecraft:stone_stairs",
+   "props": {
+    "facing": "facing",
+    "half": "half"
+   },
+   "comment": "shape is recomputed by 1.21"
+  }
+ }
+}

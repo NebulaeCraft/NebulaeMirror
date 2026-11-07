@@ -37,6 +37,10 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
   2. `damageDropped`;
   3. a property value named in the translation key;
   4. item damage = block meta.
+- **Alias metas**: some blocks decode several metas into the same state (Chisel `marble2` treats meta 8–15 as variation 7; the world holds 1.1 billion of these). Forward maps them to the state they actually render; reverse writes back the canonical meta (forward records this in `aliases`). Unmodified blocks are never written back, so the original alias meta is preserved.
+- **Single-valued properties** (Quark's `prop=blarg`, NebulaeCraft's single-value `subtype`) carry no information and 1.21 doesn't allow them, so they are dropped and added back as constants when mapping to 1.12.
+- **Writability** (`writable: false` on a state in `blocks.json`): a mirror state can be written back only if its **properties that 1.12 stores in meta** match some meta. Properties 1.12 computes itself (connections, stair shape, Sakura fence `up`, Railcraft post links) don't restrict writability because the origin recomputes them after write-back. Doors are checked per half (lower half: facing/open; upper half: hinge/powered). Unwritable states are hidden from creative tabs and rejected by the submit lint.
+- **Full state space**: 1.21 creates every property combination of a block, so every combination gets a model. Combinations no dump state covers (e.g. Extra Utilities 2 pipe connections) borrow the nearest state and are marked unwritable.
 - **Self-check** on every run; any failure is an error and exits non-zero:
   - every meta goes forward → reverse back to the same (name, meta);
   - archetype variants cover the full state space;
@@ -64,19 +68,20 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
 }
 ```
 
-- `target`: map to an existing 1.21 block instead of generating one. For each meta, the 1.21 state is built as fixed `state` + renamed 1.12 properties (`props`: old name → new name, `null` drops it) + value renames (`values`). `metas.<n>` overrides a single meta (`"unknown"` = keep that meta as a placeholder). Target properties and values are checked against the 1.21.1 report; any mismatch is an error. With `"reverse": false` the mirror never writes this block back.
+- Existing rule files: `futuremc.json` (all 79 FutureMC blocks → their 1.21 vanilla equivalents) and `quark.json` (49 Quark blocks: wooden buttons/pressure plates/trapdoors, and stairs/slabs/walls of vanilla stones). With these, builders can use vanilla blocks such as `andesite_stairs` in the mirror, and write-back turns them into the corresponding FutureMC/Quark block.
+- `target`: map to an existing 1.21 block instead of generating one. For each meta, the 1.21 state is built as fixed `state` + renamed 1.12 properties (`props`: old name → new name, `null` drops it) + value renames (`values`). `metas.<n>` overrides a single meta (`"unknown"` = keep that meta as a placeholder; a dict with `"@target"` sends that meta to a different block and replaces the derived properties entirely, e.g. a FutureMC stripped log with `axis=none` → `stripped_*_wood`, or a soul torch facing up → `soul_torch`; alias metas fall back to the rule of their canonical meta). Target properties and values are checked against the 1.21.1 report; any mismatch is an error. With `"reverse": false` the mirror never writes this block back.
 - `archetype`: force an archetype, or `generic`.
 - `unknown`: generate nothing; the importer keeps these as placeholders that preserve the original data.
 
-Only map onto a vanilla block if it looks the same (the rule from the plan). When several 1.12 blocks share one target, reverse keeps the first and lists the rest in the report's `reverseAmbiguous`.
+When several 1.12 blocks share one target, reverse priority is: generated block's own target > override's main target > per-meta `@target` redirect; within the same priority the first one wins. Conflicts are listed in the report's `reverseAmbiguous`. For example, a 1.21 acacia trapdoor is written back as `futuremc:acacia_trapdoor`, not Quark's; a 1.21 cartography table has no facing, so it is written back as one fixed meta. Reverse keys only include properties that actually vary across the canonical metas (FutureMC barrel's `open` lives in its TE and is ignored).
 
-## Current results (dev dump: NebulaeCraft 2.26 + Railcraft)
+## Current results (full modpack dump, 2026-11-07)
 
-- 597 blocks / 12,856 states / 6,057 meshes / 312,019 quads, 0 errors, about 7 seconds.
-- Archetypes: 21 stairs (Railcraft) and 4 panes (NebulaeCraft fences); the rest are generic.
-- All 3,225 metas pass the forward → reverse round trip.
-- Item subtypes: 917 resolved via pick-block, 208 via damageDropped. Railcraft lists 5 vanilla items among its own blocks' subtypes; these are skipped.
-- Warnings to deal with:
-  - 4 NebulaeCraft blocks (`device_ms_surface`, `fire_hydrant`, `info_screen_5`, `screen_door_top`) reference textures that don't exist in the 1.12 source either; this needs fixing in NebulaeCraft.
-  - 8 blocks have only a TESR with no quads (`roadmark_text`, Railcraft chests/engines and so on); P1 handles these.
-  - 29 Railcraft multiblock/machine blocks have appearance properties derived from neighbours; the mirror shows them as stored (static) values.
+- 1755 dumped blocks; 1373 generated (81 stairs, 23 panes, 2 fences, 1 fence gate, 1 door, 1265 generic); 128 mapped onto 1.21 vanilla via overrides; 39,011 states / 14,750 meshes, 0 errors, about 15 seconds.
+- World coverage (`ops/scan`): every (name, meta) the world uses is mapped, except the 2 NebulaeCraft blocks removed long ago (`device_apple_iphone` ×1106, `countdown` ×1), which become unknown placeholders.
+- Textures: 3611 modded copied; 101 vanilla references point at 1.21's own textures; 1 kept as a 1.12 fallback; Extra Utilities 2's runtime sprites (23) were read back from the atlas.
+- Warnings that matter:
+  - About 38 blocks reference textures that are missing in 1.12 too. They include 4 NebulaeCraft blocks (`device_ms_surface`, `fire_hydrant`, `info_screen_5`, `screen_door_top`) that need fixing in NebulaeCraft.
+  - 66 blocks have no quads (mostly Chisels&Bits, which renders from TE data); P1 handles these.
+  - About 139 blocks have appearance properties that 1.12 derives from neighbours/TE. The mirror shows them as stored; these are mainly Railcraft posts/wires and Quark flowerpots.
+  - About 3984 unwritable states, almost all Chisel's unused variations.

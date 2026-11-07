@@ -35,16 +35,29 @@ class TextureResolver:
         return self.cache[sprite]
 
     def _resolve(self, sprite):
-        if not sprite or sprite == 'missingno' or ':' not in sprite:
+        if not sprite or sprite == 'missingno':
+            return self._missing(sprite)
+        if ':' not in sprite:
+            # Runtime-registered sprite without a namespace (extrautils2 'glass_15', 'connected/...').
+            # The dumper read it from the atlas into textures/minecraft/<name>.png.
+            target = MOD_ID + ':block/legacy/_/' + sanitize_path(sprite)
+            if self._copy('minecraft:' + sprite, target):
+                self.report.count('textures.atlasOnly')
+                return target
             return self._missing(sprite)
         ns, path = sprite.split(':', 1)
         if ns == 'minecraft':
-            name = path[len('blocks/'):] if path.startswith('blocks/') else None
-            if name is not None:
-                for cand in vanilla_texture_candidates(name):
+            if path.startswith('blocks/'):
+                for cand in vanilla_texture_candidates(path[len('blocks/'):]):
                     if self.vanilla.has_texture('block/' + cand):
                         self.report.count('textures.vanilla121')
                         return 'minecraft:block/' + cand
+            elif path.startswith('items/'):
+                # The 1.21 block atlas also stitches item/ textures.
+                cand = 'item/' + path[len('items/'):]
+                if self.vanilla.has_texture(cand):
+                    self.report.count('textures.vanilla121')
+                    return 'minecraft:' + cand
             # No 1.21 equivalent: ship the 1.12 file under our namespace.
             target = MOD_ID + ':block/legacy/minecraft/' + sanitize_path(path)
             if self._copy(sprite, target):

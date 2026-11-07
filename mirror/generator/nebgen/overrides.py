@@ -17,7 +17,8 @@ Hand-written mapping rules, mapping/overrides/*.json:
 
 target  - map onto an existing 1.21 block instead of generating one. Every valid meta maps to
           state (fixed props) + renamed 1.12 props (props: legacyName -> newName | null to drop)
-          with optional value renames; metas.<n> overrides one meta ("unknown" = leave as placeholder).
+          with optional value renames; metas.<n> overrides one meta ("unknown" = leave as placeholder;
+          a dict may carry "@target" to send that meta to a different block, e.g. soul_fire_torch up/wall).
           "reverse": false keeps the mirror from ever writing this 1.12 block back.
 archetype - force an archetype (or "generic") for a generated block.
 unknown - generate nothing; the importer keeps these as data-preserving placeholders.
@@ -43,11 +44,15 @@ def load(directory):
     return rules
 
 
-def target_props(rule, legacy_props, meta):
-    """1.21 props for one meta under a 'target' rule, or None when that meta should stay unknown."""
-    explicit = rule.get('metas', {}).get(str(meta))
+def target_props(rule, legacy_props, meta, canonical=None):
+    """1.21 props for one meta under a 'target' rule, or None when that meta should stay unknown.
+    Alias metas (decoding to another meta's state) fall back to the rule written for their canonical meta."""
+    metas = rule.get('metas', {})
+    explicit = metas.get(str(meta), metas.get(str(canonical)) if canonical is not None else None)
     if explicit == 'unknown':
         return None
+    if isinstance(explicit, dict) and '@target' in explicit:
+        return dict(explicit)  # a different block: the explicit state replaces the derived one entirely
     out = dict(rule.get('state', {}))
     renames = rule.get('props', {})
     values = rule.get('values', {})

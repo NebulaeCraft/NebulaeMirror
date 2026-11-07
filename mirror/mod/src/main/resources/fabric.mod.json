@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "nebulaemirror",
+  "version": "${version}",
+  "name": "NebulaeMirror",
+  "description": "Appearance-only 1.21.1 versions of the 1.12.2 NebulaeCraft server's modded blocks, for the mirror server.",
+  "authors": ["Kuina"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["net.kuina.nebulaemirror.NebulaeMirror"],
+    "client": ["net.kuina.nebulaemirror.client.NebulaeMirrorClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
