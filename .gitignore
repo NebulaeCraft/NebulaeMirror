@@ -27,3 +27,6 @@ bin/
 # python
 __pycache__/
 *.pyc
+
+# runtime logs
+logs/

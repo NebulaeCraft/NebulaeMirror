@@ -100,6 +100,10 @@ public class NebulaeMirrorClient implements ClientModInitializer {
         if (Boolean.getBoolean("nebulaemirror.selftest")) {
             SelfTest.install();
         }
+        String tour = System.getProperty("nebulaemirror.tour");
+        if (tour != null && !tour.isBlank()) {
+            Tour.install(java.nio.file.Path.of(tour));
+        }
     }
 
     private static int stateTint(MirrorBlockSupport support, BlockState state, int tint, int fallback) {

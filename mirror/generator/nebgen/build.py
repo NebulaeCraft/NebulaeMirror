@@ -637,13 +637,35 @@ class Generator:
 
     # ------------------------------------------------------------------ output
 
+    def _biome_map(self):
+        """
+        Modded 1.12 biome -> vanilla 1.12 biome name (DFU then upgrades it). Grass/foliage colour in 1.21 comes
+        from temperature/rainfall, so prefer a vanilla biome with the same climate, else the nearest colours.
+        """
+        vanilla = {k: v for k, v in self.dump.biomes.items() if k.startswith('minecraft:') and 'grassColor' in v}
+        out = {}
+        for name, b in sorted(self.dump.biomes.items()):
+            if name.startswith('minecraft:') or 'grassColor' not in b:
+                continue
+            same = [k for k, v in vanilla.items()
+                    if v['temperature'] == b['temperature'] and v['rainfall'] == b['rainfall']]
+
+            def dist(v):
+                d = 0
+                for key in ('grassColor', 'foliageColor'):
+                    a, c = b[key] & 0xFFFFFF, v[key] & 0xFFFFFF
+                    d += sum(abs(((a >> sh) & 255) - ((c >> sh) & 255)) for sh in (0, 8, 16))
+                return d
+            pick = min(same or vanilla, key=lambda k: (dist(vanilla[k]), k))
+            out[name] = pick
+            self.report.item('biomeMapping', '%s -> %s%s' % (name, pick, '' if same else ' (nearest colour)'))
+        return out
+
     def _write_outputs(self):
         mirror = os.path.join(self.out, 'mirror')
         self.blocks.sort(key=lambda b: b['id'])
         write_json(os.path.join(mirror, 'blocks.json'), {
             'schema': SCHEMA, 'shapes': self.shapes, 'blocks': self.blocks}, pretty=False)
-        write_json(os.path.join(mirror, 'forward.json'), {
-            'schema': SCHEMA, 'blocks': dict(sorted(self.forward.items()))}, pretty=False)
         write_json(os.path.join(mirror, 'reverse.json'), {
             'schema': SCHEMA, 'blocks': dict(sorted(self.reverse.items()))}, pretty=False)
         write_json(os.path.join(mirror, 'source.json'), {
@@ -675,6 +697,17 @@ class Generator:
         for ns, langs in self.lang.items():
             for code, entries in langs.items():
                 write_json(os.path.join(self.assets, ns, 'lang', code + '.json'), dict(sorted(entries.items())))
+        # forward entries whose target block takes neighbour-derived properties: the importer lists those
+        # positions in the chunk's UpgradeData so 1.21 recomputes connections / stair shapes on first load.
+        archetype_ids = {b['id'] for b in self.blocks if b['archetype'] != 'generic'}
+        shape_suffixes = ('_wall', '_stairs', '_fence', '_pane', '_fence_gate', '_door', 'iron_bars')
+        for fw in self.forward.values():
+            targets = {fw['target']} | set(fw.get('metaTargets', {}).values())
+            if any(t in archetype_ids or (t.startswith('minecraft:') and t.endswith(shape_suffixes)) for t in targets):
+                fw['shapeUpdate'] = True
+        write_json(os.path.join(mirror, 'forward.json'), {
+            'schema': SCHEMA, 'blocks': dict(sorted(self.forward.items()))}, pretty=False)
+        write_json(os.path.join(mirror, 'biomes.json'), {'schema': SCHEMA, 'biomes': self._biome_map()})
         self.report.count('blocks.generated', len(self.blocks))
         self.report.count('shapes', len(self.shapes))
         self.report.count('forward.blocks', len(self.forward))

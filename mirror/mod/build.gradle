@@ -10,6 +10,7 @@ base { archivesName = project.archives_base_name }
 def genDir = file(project.findProperty('genDir') ?: "${rootDir}/../../work/gen")
 
 repositories {
+    mavenCentral()
 }
 
 dependencies {
@@ -17,6 +18,13 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {
@@ -48,6 +56,31 @@ java {
 
 loom {
     runs {
+        // Screenshot tour of a singleplayer world: ./gradlew runTourClient -PtourWorld=world -PtourFile=/abs/tour.txt
+        // (copy the world into run/tour/saves/ first).
+        tourClient {
+            client()
+            name 'Tour Client'
+            runDir 'run/tour'
+            programArgs '--quickPlaySingleplayer', (project.findProperty('tourWorld') ?: 'world')
+            vmArg "-Dnebulaemirror.tour=${project.findProperty('tourFile') ?: ''}"
+        }
+        // Full import at server start: ./gradlew runImportServer -PimportSource=/path/to/1.12/world [-PimportRegions=x1,z1,x2,z2]
+        // Uses run/import as the server directory (void flat world, see docs/importer.md).
+        importServer {
+            server()
+            name 'Import Server'
+            runDir 'run/import'
+            if (project.hasProperty('importSource')) {
+                vmArg "-Dnebulaemirror.import=${project.property('importSource')}"
+            }
+            if (project.hasProperty('importRegions')) {
+                vmArg "-Dnebulaemirror.import.regions=${project.property('importRegions')}"
+            }
+            if (project.hasProperty('importOverwrite')) {
+                vmArg '-Dnebulaemirror.import.overwrite=true'
+            }
+        }
         // Headless check: registers everything, bakes every mesh, writes a report, exits.
         selftestClient {
             client()
@@ -56,4 +89,9 @@ loom {
             runDir 'run/selftest'
         }
     }
+}
+
+// Let the dev servers read console commands (e.g. "nebulaemirror stats ...", "stop") from stdin.
+tasks.matching { it.name in ['runServer', 'runImportServer'] }.configureEach {
+    standardInput = System.in
 }
