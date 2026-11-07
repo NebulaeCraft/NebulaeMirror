@@ -71,8 +71,8 @@ The world uses 6 rail types and 11 kits (reinforced turnout ×1917, buffer ×571
 
 - Verification:
   - `OutfittedTrackKeyTest` checks the keys against real TileEntity NBT from the world. The generator test checks variant → mesh deduplication and the table, and that a dump without the file only produces a warning.
-  - A 0.2.x dump was made in the NebulaeCraft dev client, whose Railcraft jar is byte-identical to the server's: 4214 variants, 1046 distinct models, 0 errors. Merged into the full dump only for testing, it generated with 0 errors and 1046 track meshes. A tour of the imported world loaded all 4214 variants and drew 389 tracks, with 0 unmatched keys. In the screenshots, the iron turnouts and wyes at (−491, 68, −359) show their switch rails, the iron control tracks at (−3000, 102, 599) show the control plates, and the high-speed boosters show as plain rails (hidden kit).
-  - The real source is still a full 0.2.1 re-dump on the modpack client (`dumps/full` is 0.1.0 and lacks the kit textures), see [dumper.md](dumper.md).
+  - Full modpack dump `20261107-200107` (MirrorDumper 0.2.1): 4214 variants, no track errors. The models match the earlier dev-client dump: same quads, with UVs differing by less than 0.01 texel because of the larger atlas. Generated with 0 errors into 1046 track meshes, all kit textures included.
+  - A tour of the imported world loaded all 4214 variants and drew 449 tracks, with 0 unmatched keys. In the screenshots, the iron turnouts and wyes at (−491, 68, −359) and the reinforced turnouts in the station at (−497, 67, −234) show their switch rails, with the buffer stop at the end. The iron control tracks at (−3000, 102, 599) show the control plates, including on the slope. The high-speed boosters show as plain rails (hidden kit).
 
 ## Chisel connected textures (CTM)
 

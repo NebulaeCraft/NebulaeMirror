@@ -34,7 +34,7 @@ The mirror draws outfitted tracks (turnouts, wyes, buffer stops, boosters, …) 
 3. Check the log line `Dump finished: …` and `manifest.json` → `summary.trackKitVariants`. It must not be 0; the Railcraft 12.1.1 pack gives 4214 ( every rail type × kit × shape × state, 1046 distinct models). Railcraft-related problems are logged in `errors.json` under `railcraft:track_outfitted` / stage `trackKits`.
 4. Copy the dump into `dumps/`, re-run the generator (`report.md` counts `tracks.variants` / `tracks.meshes`) and rebuild the mod. No re-import is needed: the client reads the TileEntity data the import already stored.
 
-The extra file only adds models; everything else in the dump is unchanged, so a full re-dump with 0.2.1 replaces the earlier dump one to one.
+The extra file only adds models; everything else in the dump is unchanged, so a full re-dump with 0.2.1 replaces the earlier dump one to one. Verified on the modpack client with `20261107-200107`: `trackKitVariants` 4214, no track errors.
 
 ## Output format (schema 1)
 
