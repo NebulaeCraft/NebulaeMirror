@@ -10,7 +10,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] Mirror mod `mirror/mod/` (Fabric 1.21.1): block registration, mesh models, items/creative tabs, legacy TE storage, unknown placeholder, see [docs/mirror-mod.md](docs/mirror-mod.md)
 - [x] FutureMC/Quark → 1.21 vanilla overrides (`mapping/overrides/`)
 - [x] Importer: full offline import (DFU + modded block substitution), see [docs/importer.md](docs/importer.md)
-- [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (roadmark_text, moarsigns, Railcraft tanks, CTM still to do)
+- [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
 - [ ] Online incremental sync (P2)
 - [ ] Bridge mod `legacy/bridge/` (zone lock, patch apply/rollback)
 

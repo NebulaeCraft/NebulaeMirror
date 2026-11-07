@@ -68,6 +68,7 @@ import java.util.TreeSet;
  * sprites.json                     per sprite: size, frames, copy status
  * lang/&lt;ns&gt;/&lt;lang&gt;.lang           en_us / zh_cn of every namespace that has blocks
  * biomes.json                      biome colours (for tinting)
+ * extras/railcraft_tracks.json     Railcraft outfitted track models per rail type / kit / shape / kit state
  * errors.json                      everything that threw, per block/state/stage
  * </pre>
  */
@@ -135,6 +136,8 @@ final class Dumper {
         }
         Json.write(new File(out, "blocks/index.json"), index, true);
 
+        int trackVariants = exportTrackKits(out);
+
         Json.write(new File(out, "sprites.json"), textures.export(models.sprites), true);
         exportLang(out, namespaces);
         Json.write(new File(out, "biomes.json"), dumpBiomes(), true);
@@ -152,6 +155,7 @@ final class Dumper {
         summary.addProperty("texturesFromAtlas", textures.fromAtlas);
         summary.addProperty("texturesVanillaSkipped", textures.skipped);
         summary.add("texturesMissing", textures.missing);
+        summary.addProperty("trackKitVariants", trackVariants);
         summary.addProperty("errors", errors.size());
         summary.addProperty("seconds", (System.currentTimeMillis() - start) / 1000.0);
         manifest.add("summary", summary);
@@ -361,6 +365,13 @@ final class Dumper {
             error(name, state, "extendedState", t);
         }
 
+        m.add("layers", bakeLayers(name, state, renderState, model, layers, tints));
+        return m;
+    }
+
+    /** Baked quads of {@code renderState} per render layer, stored in the model store: {LAYER: hash}. */
+    private JsonObject bakeLayers(String name, IBlockState state, IBlockState renderState, IBakedModel model,
+                                  JsonArray layers, Set<Integer> tints) {
         JsonObject refs = new JsonObject();
         for (int i = 0; i < layers.size(); i++) {
             BlockRenderLayer layer = BlockRenderLayer.valueOf(layers.get(i).getAsString());
@@ -386,8 +397,64 @@ final class Dumper {
                 ForgeHooksClient.setRenderLayer(null);
             }
         }
+        return refs;
+    }
+
+    /** Render layers a state is drawn in (exceptions count as "not in that layer"). */
+    static JsonArray layersOf(Block block, IBlockState state) {
+        JsonArray layers = new JsonArray();
+        for (BlockRenderLayer layer : LAYERS) {
+            try {
+                if (block.canRenderInLayer(state, layer)) {
+                    layers.add(layer.name());
+                }
+            } catch (Throwable ignored) {
+                // reported by the regular block dump
+            }
+        }
+        return layers;
+    }
+
+    /**
+     * One TileEntity-driven appearance of a block: the quads of an explicitly built (extended) render state.
+     * Same shape as a state's {@code model} object ({@code ao}, {@code particle}, {@code layers}); null if empty.
+     */
+    JsonObject bakeVariant(String name, IBlockState state, IBlockState renderState, IBakedModel model, JsonArray layers) {
+        JsonObject refs = bakeLayers(name, state, renderState, model, layers, new TreeSet<>());
+        if (refs.size() == 0) {
+            return null;
+        }
+        JsonObject m = new JsonObject();
+        m.addProperty("ao", model.isAmbientOcclusion(state));
+        try {
+            if (model.getParticleTexture() != null) {
+                m.addProperty("particle", model.getParticleTexture().getIconName());
+                models.sprites.add(model.getParticleTexture().getIconName());
+            }
+        } catch (Throwable t) {
+            error(name, state, "particle", t);
+        }
         m.add("layers", refs);
         return m;
+    }
+
+    /** TileEntity-driven model variants (see {@link TrackKitExporter}); @return the number of variants written. */
+    private int exportTrackKits(File out) {
+        if (!options.fullDump("railcraft")) {
+            return 0;
+        }
+        try {
+            JsonObject tracks = TrackKitExporter.export(this,
+                    Minecraft.getMinecraft().getBlockRendererDispatcher().getBlockModelShapes());
+            if (tracks == null) {
+                return 0;
+            }
+            Json.write(new File(out, "extras/railcraft_tracks.json"), tracks, false);
+            return tracks.get("variantCount").getAsInt();
+        } catch (Throwable t) {
+            error(TrackKitExporter.BLOCK, null, "trackKits", t);
+            return 0;
+        }
     }
 
     /** Colour per tint index, sampled in two biomes so biome-dependent tints can be detected. */
@@ -472,7 +539,7 @@ final class Dumper {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static String valueName(IProperty p, Comparable v) {
+    static String valueName(IProperty p, Comparable v) {
         return p.getName(v);
     }
 

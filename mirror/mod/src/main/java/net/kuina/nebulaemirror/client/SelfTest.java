@@ -53,9 +53,12 @@ final class SelfTest {
             for (BlockState s : e.getKey().getStateDefinition().getPossibleStates()) {
                 states++;
                 BakedModel m = mc.getBlockRenderer().getBlockModel(s);
-                if (m instanceof net.kuina.nebulaemirror.client.legacy.LegacyModel lm) {
-                    legacyWrapped++;
-                    m = lm.getWrappedModel();
+                // Peel wrappers: ours (LegacyModel) and other mods' (Continuity wraps every block model).
+                while (m instanceof net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel fm) {
+                    if (fm instanceof net.kuina.nebulaemirror.client.legacy.LegacyModel) {
+                        legacyWrapped++;
+                    }
+                    m = fm.getWrappedModel();
                 }
                 if (m instanceof MeshBakedModel mm) {
                     meshStates++;
@@ -76,8 +79,18 @@ final class SelfTest {
                 missingItems.add(BuiltInRegistries.ITEM.getKey(e.getKey().asItem()).toString());
             }
         }
+        // Railcraft outfitted-track kit meshes (extra models, not reachable through any block state).
+        int trackVariants = 0, trackBaked = 0;
+        for (var id : net.kuina.nebulaemirror.client.legacy.OutfittedTrack.table().values()) {
+            trackVariants++;
+            if (mc.getModelManager().getModel(id) instanceof MeshBakedModel) {
+                trackBaked++;
+            }
+        }
         JsonObject out = new JsonObject();
         out.addProperty("blocks", NebulaeMirror.BLOCKS.size());
+        out.addProperty("trackVariants", trackVariants);
+        out.addProperty("trackVariantsBaked", trackBaked);
         out.addProperty("states", states);
         out.addProperty("statesWithMesh", meshStates);
         out.addProperty("statesWithEmptyMesh", emptyStates);

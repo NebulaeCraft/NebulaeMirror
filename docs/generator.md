@@ -4,7 +4,10 @@
 
 ```bash
 python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.21.1] [--overrides mapping/overrides] [--out work/gen]
+    [--mods data/mods.zip] [--nebulaecraft ../NebulaeCraft/src/main/resources]
 ```
+
+`--mods` (the origin server's mods zip) supplies the MoarSigns sign textures; `--nebulaecraft` (the NebulaeCraft 2.26 source resources) supplies the roadmark fonts, falling back to the NebulaeCraft jar in the mods zip. Both are only needed for the P1 text renderers; without them the generator warns and continues.
 
 `--mc` needs the 1.21.1 reference data (block report + vanilla texture list). Run `ops/mc/fetch_121.sh` once to produce it. The output directory is recreated on every run; to avoid deleting the wrong folder, it only clears directories it created itself.
 
@@ -20,6 +23,9 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
 | `assets/nebulaemirror/meshes/<hash>.json` | client | Baked quads (block-space vertices, sprite-relative 0..16 UVs, `layer`, `cull`, `tint`, `shade`, `emissive`), deduplicated by content |
 | `assets/<ns>/textures/block/…` | client | Modded textures. Vanilla textures reference 1.21's own assets (`minecraft:block/black_concrete` and so on); only when no equivalent exists is the 1.12 file shipped under `nebulaemirror:block/legacy/minecraft/…` |
 | `assets/<ns>/lang/{en_us,zh_cn}.json` | client | Block names plus each subtype's legacy translation key |
+| `assets/nebulaemirror/optifine/ctm/<ns>/*.properties` + `textures/block/ctm/…` | client with Continuity | Chisel's CTM 1.12 connected/patterned/random textures converted to Continuity (OptiFine-format) rules, with the tiles cut out of CTM's sheets (see below) |
+| `assets/nebulaemirror/legacy/railcraft_tracks.json` | client | Railcraft outfitted track `"<rail>\|<kit>\|<shape>\|<state>"` → mesh, from the dump's `extras/railcraft_tracks.json` (MirrorDumper 0.2.1; `nebgen/tracks.py`). Missing from older dumps: the generator warns and tracks keep the default-kit model |
+| `assets/nebulaemirror/textures/moarsigns/…`, `assets/nebulaemirror/roadmark/*.ttf` | client | MoarSigns sign textures and the NebulaeCraft road-marking fonts for the text renderers |
 | `report.json` / `report.md` | humans | Counts, errors, warnings (grouped by type, listing the blocks), missing textures, foreign item subtypes, and so on |
 
 ## Key rules
@@ -46,6 +52,19 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
   - archetype variants cover the full state space;
   - forward states are legal for their target block;
   - every block has a variant for its default state.
+- **CTM → Continuity** (`nebgen/ctm.py`): every sprite the meshes use whose 1.12 `.mcmeta` has a `ctm` section is converted. CTM's own type decides the Continuity method and tile order:
+
+  | CTM 1.12 / Chisel | Continuity | Notes |
+  |---|---|---|
+  | `ctm` (base + 2×2 `-ctm` sheet) | `ctm_compact` | tiles 0 base, 1 full, 2 vertical, 3 horizontal, 4 inner corners = CTM sheet TL/TR/BL/BR |
+  | `ctmh` | `horizontal` | |
+  | `pillar` / `ctmv` | `vertical`, side faces only | vertical columns; lying pillars stay unconnected |
+  | `pattern` / `v` | `repeat` | one file per face group, so the tile phase matches CTM's world-position formula exactly |
+  | `random` / `r`, Chisel `AR` | `random` | same tiles; which block gets which tile differs from 1.12 |
+  | Chisel `SCTM` | `fixed` | the unconnected tile |
+
+  Connections use `connect=state` (CTM's default). Animated sheets keep their frames. File names never start with `block_`, which Continuity would read as a block match. CTM `light: 15` marks the quads emissive (the dump already has it for those).
+- **TESR-only blocks**: MoarSigns states are `INVISIBLE` in 1.12 yet the dump carries a baked placeholder cube; their meshes are left empty because the mirror's sign renderer draws them.
 - **Archetype specs** are checked against the real property sets in the 1.21.1 block report on every run, so a Minecraft version change is caught immediately.
 
 ## Hand-written mappings `mapping/overrides/*.json`
@@ -83,5 +102,6 @@ When several 1.12 blocks share one target, reverse priority is: generated block'
 - Warnings that matter:
   - About 38 blocks reference textures that are missing in 1.12 too. They include 4 NebulaeCraft blocks (`device_ms_surface`, `fire_hydrant`, `info_screen_5`, `screen_door_top`) that need fixing in NebulaeCraft.
   - 66 blocks have no quads (mostly Chisels&Bits, which renders from TE data); P1 handles these.
+- CTM: 654 textures converted (365 connected, 125 pattern, 117 random/AR, 26 pillar, 15 horizontal, 6 SCTM) into 1154 property files and 3275 tiles.
   - About 139 blocks have appearance properties that 1.12 derives from neighbours/TE. The mirror shows them as stored; these are mainly Railcraft posts/wires and Quark flowerpots.
   - About 3984 unwritable states, almost all Chisel's unused variations.

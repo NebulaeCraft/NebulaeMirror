@@ -28,3 +28,17 @@ SOFTWARE.
 net.kuina.nebulaemirror.legacy.ChiselsBlob is an independent implementation that reads the voxel data
 format written by Chisels & Bits 1.12 (https://github.com/ChiselsAndBits/Chisels-and-Bits, branch 1.12,
 licensed LGPL-3.0). No Chisels & Bits code is included.
+
+----
+net.kuina.nebulaemirror.client.legacy.MoarSign is ported from MoarSigns 1.12 (MoarSignRenderer,
+ModelMoarSign, TileEntityMoarSign; https://github.com/GoryMoon/MoarSigns), which is licensed under the
+GNU LGPL v3 or later. That file is distributed under the same licence (LGPL-3.0-or-later); the
+licence text is at https://www.gnu.org/licenses/lgpl-3.0.txt. MoarSigns' sign textures are not part of
+this repository: mirror/generator copies them from the origin server's mod jar into the build.
+
+----
+mirror/generator/nebgen/ctm.py converts the texture metadata of the CTM mod 1.12
+(https://github.com/Chisel-Team/ConnectedTexturesMod, GPL-2.0) and Chisel's "AR"/"SCTM" types into
+Continuity / OptiFine CTM properties. It is an independent implementation of the tile layouts; no CTM or
+Chisel code is included. Continuity (https://github.com/PepperCode1/Continuity, LGPL-3.0) is only a
+runtime dependency of the client modpack and is not bundled.

@@ -9,6 +9,7 @@ import net.kuina.nebulaemirror.NebulaeMirror;
 import net.kuina.nebulaemirror.block.LegacyBlockEntity;
 import net.kuina.nebulaemirror.client.legacy.LegacyModel;
 import net.kuina.nebulaemirror.client.legacy.LegacyRenders;
+import net.kuina.nebulaemirror.client.legacy.OutfittedTrack;
 import net.kuina.nebulaemirror.block.MirrorBlockHolder;
 import net.kuina.nebulaemirror.block.MirrorBlockSupport;
 import net.minecraft.core.component.DataComponents;
@@ -82,6 +83,8 @@ public class NebulaeMirrorClient implements ClientModInitializer {
 
         // Blocks carrying 1.12 TileEntity data (C&B, ArchitectureCraft, ...) draw from that data when they can.
         LegacyBlockEntity.renderFactory = LegacyRenders::create;
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(NebulaeMirror.LEGACY_BLOCK_ENTITY,
+                net.kuina.nebulaemirror.client.legacy.LegacyTextRenderer::new);
         LegacyBlockEntity.clientChanged = be -> {
             if (be.getLevel() != null) {
                 be.getLevel().sendBlockUpdated(be.getBlockPos(), be.getBlockState(), be.getBlockState(), 8);
@@ -94,7 +97,11 @@ public class NebulaeMirrorClient implements ClientModInitializer {
             }
         }
 
-        PreparableModelLoadingPlugin.register(NebulaeMirrorClient::loadMeshes, (meshes, ctx) -> {
+        PreparableModelLoadingPlugin.register(NebulaeMirrorClient::loadAssets, (assets, ctx) -> {
+            Map<ResourceLocation, MeshData> meshes = assets.meshes();
+            // Railcraft outfitted-track kit meshes are not referenced by any blockstate: bake them as extra models.
+            OutfittedTrack.setTable(assets.tracks());
+            ctx.addModels(new java.util.HashSet<>(assets.tracks().values()));
             ctx.modifyModelAfterBake().register((model, context) -> {
                 var top = context.topLevelId();
                 if (model != null && top != null && !"inventory".equals(top.variant()) && legacyBlocks.contains(top.id())) {
@@ -134,6 +141,34 @@ public class NebulaeMirrorClient implements ClientModInitializer {
         MirrorData.StateInfo si = support.lookup(state);
         Integer c = si == null ? null : si.tints().get(tint);
         return c == null ? fallback : c;
+    }
+
+    /** Generator assets the model loading plugin needs: meshes, and the outfitted-track key -> mesh table. */
+    private record ClientAssets(Map<ResourceLocation, MeshData> meshes, Map<String, ResourceLocation> tracks) {
+    }
+
+    private static CompletableFuture<ClientAssets> loadAssets(ResourceManager manager,
+                                                             java.util.concurrent.Executor executor) {
+        return loadMeshes(manager, executor).thenApply(meshes -> {
+            Map<String, ResourceLocation> tracks = Map.of();
+            var res = manager.getResource(NebulaeMirror.id(OutfittedTrack.TABLE));
+            if (res.isPresent()) {
+                try (Reader r = res.get().openAsReader()) {
+                    tracks = OutfittedTrack.parseTable(JsonParser.parseReader(r).getAsJsonObject());
+                } catch (Exception ex) {
+                    NebulaeMirror.LOG.error("Bad {}: {}", OutfittedTrack.TABLE, ex.toString());
+                }
+            }
+            // Drop entries whose mesh is missing, so addModels never asks for a model nobody resolves.
+            Map<String, ResourceLocation> known = new HashMap<>();
+            tracks.forEach((k, id) -> {
+                if (meshes.containsKey(id)) {
+                    known.put(k, id);
+                }
+            });
+            NebulaeMirror.LOG.info("Loaded {} outfitted track variants", known.size());
+            return new ClientAssets(meshes, known);
+        });
     }
 
     /** Parses every assets/nebulaemirror/meshes/*.json off-thread during resource reload. */

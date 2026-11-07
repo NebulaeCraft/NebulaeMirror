@@ -38,7 +38,7 @@ final class ArchitectureRender implements LegacyRender {
     static final AtomicLong MESHES = new AtomicLong();
 
     private record Key(int shape, int side, int turn, int offsetX, BlockState base, @Nullable BlockState second,
-                       int baseColor, int secondColor) {
+                       int baseColor, int secondColor, int frameFlags) {
     }
 
     private static final Map<Key, Mesh> CACHE = new ConcurrentHashMap<>();
@@ -59,17 +59,50 @@ final class ArchitectureRender implements LegacyRender {
     private final int side;
     private final int turn;
     private final int offsetX;
-    private final BlockState base;
+    final BlockState base;
     @Nullable
-    private final BlockState second;
+    final BlockState second;
+    /** TileShape "Disconnected": bit per global direction whose connection the player switched off. */
+    final int disconnected;
+    final double[][] rotation;
 
-    ArchitectureRender(int shape, int side, int turn, int offsetX, BlockState base, @Nullable BlockState second) {
+    ArchitectureRender(int shape, int side, int turn, int offsetX, BlockState base, @Nullable BlockState second,
+                       int disconnected) {
         this.shape = shape;
         this.side = Math.floorMod(side, 6);
         this.turn = Math.floorMod(turn, 4);
         this.offsetX = offsetX;
         this.base = base;
         this.second = second;
+        this.disconnected = disconnected;
+        this.rotation = mul(SIDE[this.side], TURN[this.turn]);
+    }
+
+    int shapeId() {
+        return shape;
+    }
+
+    boolean hasSecond() {
+        return second != null && !second.isAir();
+    }
+
+    /** Trans3#t(EnumFacing): local face -> global face. */
+    Direction globalFace(Direction local) {
+        double[] v = apply(rotation, local.getStepX(), local.getStepY(), local.getStepZ());
+        return facing((float) v[0], (float) v[1], (float) v[2]);
+    }
+
+    /** Trans3#it(EnumFacing): global face -> local face (the rotation is orthonormal, so the inverse is the transpose). */
+    Direction localFace(Direction global) {
+        double[][] r = rotation;
+        int x = global.getStepX(), y = global.getStepY(), z = global.getStepZ();
+        return facing((float) (r[0][0] * x + r[1][0] * y + r[2][0] * z),
+                (float) (r[0][1] * x + r[1][1] * y + r[2][1] * z),
+                (float) (r[0][2] * x + r[1][2] * y + r[2][2] * z));
+    }
+
+    boolean connectionEnabled(Direction global) {
+        return (disconnected & 1 << global.ordinal()) == 0;
     }
 
     static String stats() {
@@ -83,20 +116,23 @@ final class ArchitectureRender implements LegacyRender {
             return false;
         }
         Minecraft mc = Minecraft.getInstance();
+        int frameFlags = s.kind() == ArchitectureShapes.Kind.WINDOW ? ArchitectureWindows.frameFlags(this, level, pos) : 0;
         List<ArchitectureRoofs.Poly> polys = switch (s.kind()) {
             case MODEL -> modelPolys(ArchitectureShapes.model(s.model()));
             case ROOF -> ROOFS.computeIfAbsent(shape, id -> Optional.ofNullable(ArchitectureRoofs.polys(id))).orElse(null);
+            case WINDOW -> ArchitectureWindows.polys(shape, frameFlags, hasSecond());
             default -> null;
         };
         if (polys == null) {
-            // Window / cladding / smart roof generators are not ported: show the material as a full block.
+            // Cladding / smart roof generators are not ported (unused in the world): show the material as a full block.
             emitBlockModel(base, emitter);
             return true;
         }
         int baseColor = mc.getBlockColors().getColor(base, level, pos, 0);
         int secondColor = second == null ? baseColor : mc.getBlockColors().getColor(second, level, pos, 0);
-        Key key = new Key(shape, side, turn, offsetX, base, second, baseColor, secondColor);
-        Mesh mesh = CACHE.computeIfAbsent(key, k -> build(polys, k));
+        Key key = new Key(shape, side, turn, offsetX, base, second, baseColor, secondColor, frameFlags);
+        boolean window = s.kind() == ArchitectureShapes.Kind.WINDOW;
+        Mesh mesh = CACHE.computeIfAbsent(key, k -> build(polys, k, window));
         mesh.outputTo(emitter);
         return true;
     }
@@ -120,7 +156,7 @@ final class ArchitectureRender implements LegacyRender {
      * OBJSON model -> polygons (one per triangle, block-space 0..1 positions, per-vertex normals folded into the
      * face normal of the first vertex as ArchitectureCraft's RenderTargetBase does for projection).
      */
-    private static List<ArchitectureRoofs.Poly> modelPolys(ArchitectureShapes.Model model) {
+    static List<ArchitectureRoofs.Poly> modelPolys(ArchitectureShapes.Model model) {
         return MODEL_POLYS.computeIfAbsent(model, m -> {
             List<ArchitectureRoofs.Poly> out = new ArrayList<>();
             if (m.faces == null) {
@@ -141,13 +177,16 @@ final class ArchitectureRender implements LegacyRender {
         });
     }
 
-    private static Mesh build(List<ArchitectureRoofs.Poly> polys, Key k) {
+    private static Mesh build(List<ArchitectureRoofs.Poly> polys, Key k, boolean window) {
         Renderer renderer = RendererAccess.INSTANCE.getRenderer();
         MeshBuilder builder = renderer.meshBuilder();
         QuadEmitter e = builder.getEmitter();
         Minecraft mc = Minecraft.getInstance();
-        BlockState secondState = k.second() != null && !k.second().isAir()
-                && ItemBlockRenderTypes.getChunkRenderType(k.second()) == net.minecraft.client.renderer.RenderType.solid()
+        // ShapeRenderDispatch#renderShapeTE: shapes whose secondary defaults to the base (everything but windows) use
+        // the base material when the secondary one is missing or not solid. Window glass keeps its own layer.
+        boolean hasSecond = k.second() != null && !k.second().isAir();
+        BlockState secondState = hasSecond && (window
+                || ItemBlockRenderTypes.getChunkRenderType(k.second()) == net.minecraft.client.renderer.RenderType.solid())
                 ? k.second() : k.base();
         TextureAtlasSprite baseSprite = mc.getBlockRenderer().getBlockModelShaper().getParticleIcon(k.base());
         TextureAtlasSprite secondSprite = mc.getBlockRenderer().getBlockModelShaper().getParticleIcon(secondState);
@@ -222,7 +261,7 @@ final class ArchitectureRender implements LegacyRender {
         return true;
     }
 
-    private static Direction facing(float x, float y, float z) {
+    static Direction facing(float x, float y, float z) {
         float ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
         if (ay >= ax && ay >= az) {
             return y > 0 ? Direction.UP : Direction.DOWN;
@@ -235,7 +274,7 @@ final class ArchitectureRender implements LegacyRender {
 
     // ---- Matrix3 (row-major, as ArchitectureCraft) ----
 
-    private static double[][] ident() {
+    static double[][] ident() {
         return new double[][]{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     }
 
@@ -255,15 +294,15 @@ final class ArchitectureRender implements LegacyRender {
         return rot(deg, 1, 2);
     }
 
-    private static double[][] rotY(double deg) {
+    static double[][] rotY(double deg) {
         return rot(deg, 2, 0);
     }
 
-    private static double[][] rotZ(double deg) {
+    static double[][] rotZ(double deg) {
         return rot(deg, 0, 1);
     }
 
-    private static double[][] mul(double[][] a, double[][] b) {
+    static double[][] mul(double[][] a, double[][] b) {
         double[][] r = new double[3][3];
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -273,7 +312,7 @@ final class ArchitectureRender implements LegacyRender {
         return r;
     }
 
-    private static double[] apply(double[][] m, double x, double y, double z) {
+    static double[] apply(double[][] m, double x, double y, double z) {
         return new double[]{
                 x * m[0][0] + y * m[0][1] + z * m[0][2],
                 x * m[1][0] + y * m[1][1] + z * m[1][2],

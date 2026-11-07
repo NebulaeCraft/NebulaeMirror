@@ -8,6 +8,7 @@ Output layout (`--out`):
   mirror/source.json      provenance: dump manifest, mod versions, generator schema
   assets/<ns>/blockstates/<path>.json         variants -> nebulaemirror:mesh/<hash>
   assets/nebulaemirror/meshes/<hash>.json     baked quads (loaded by the mod's model loading plugin)
+  assets/nebulaemirror/legacy/railcraft_tracks.json  outfitted track (rail, kit, shape, state) -> mesh (nebgen/tracks.py)
   assets/<ns>/textures/block/...              textures (vanilla ones are referenced, not copied, when 1.21 has them)
   assets/<ns>/lang/{en_us,zh_cn}.json
   report.json / report.md
@@ -18,10 +19,12 @@ import os
 import shutil
 import time
 
-from . import MOD_ID, SCHEMA, archetypes, overrides as ovr
+from . import MOD_ID, SCHEMA, archetypes, overrides as ovr, tracks
 from .dump import Dump
 from .props import make_extra
 from .report import Report
+from .ctm import CtmConverter
+from .extras import copy_extras
 from .textures import MISSING, TextureResolver
 from .util import content_hash, sanitize_id, variant_key, write_json
 from .vanilla import Vanilla121
@@ -39,8 +42,15 @@ SOUNDS = {
 }
 
 
+# Blocks whose 1.12 look comes only from a TESR the mirror reproduces (client/legacy/MoarSign): their INVISIBLE
+# states still carry a baked placeholder model in the dump, which 1.12 never drew.
+TESR_ONLY_PREFIXES = ('moarsigns:',)
+
+
 class Generator:
-    def __init__(self, dump_dir, mc_dir, overrides_dir, out_dir):
+    def __init__(self, dump_dir, mc_dir, overrides_dir, out_dir, mods_zip=None, nebulaecraft=None):
+        self.mods_zip = mods_zip
+        self.nebulaecraft = nebulaecraft
         self.report = Report()
         self.dump = Dump(dump_dir)
         self.vanilla = Vanilla121(mc_dir)
@@ -48,6 +58,7 @@ class Generator:
         self.out = out_dir
         self.assets = os.path.join(out_dir, 'assets')
         self.textures = TextureResolver(self.dump, self.vanilla, self.assets, self.report)
+        self.ctm = CtmConverter(self.dump, self.assets, self.report)
         self.meshes_written = set()
         self.shapes = []
         self._shape_index = {}
@@ -95,6 +106,10 @@ class Generator:
                 self.report.warn(name, 'override for a block that is not in the dump')
 
         self._build_reverse()
+        tracks.convert(self.dump.root, self.assets, self._mesh, self.report,
+                       any(e['name'] == tracks.BLOCK for e in self.dump.index))
+        self.ctm.convert(self.textures.cache)
+        copy_extras(self.assets, self.mods_zip, self.nebulaecraft, self.report)
         self._self_check()
         self._write_outputs()
         self.report.count('seconds', int(time.time() - start))
@@ -215,7 +230,8 @@ class Generator:
             if s is None:
                 s = self._closest_state(states, legacy, stored) or default_state
                 fallbacks += 1
-            mesh_id, info = self._mesh(s)
+            mesh_id, info = self._mesh(s, invisible=name.startswith(TESR_ONLY_PREFIXES)
+                                       and s.get('renderType') == 'INVISIBLE')
             key = variant_key(p121)
             chosen[key] = s
             variants[key] = {'model': mesh_id}
@@ -335,8 +351,9 @@ class Generator:
 
     # ------------------------------------------------------------------ meshes / physics
 
-    def _mesh(self, state):
-        model = state.get('model') or {}
+    def _mesh(self, state, invisible=False):
+        # 1.12 never draws the static model of an INVISIBLE state; the mirror's block-entity renderer draws it.
+        model = {} if invisible else (state.get('model') or {})
         quads = []
         info = {'layers': set(), 'tints': set(), 'emissive': False, 'empty': 0, 'missing': False}
         for layer, h in (model.get('layers') or {}).items():
@@ -351,11 +368,14 @@ class Generator:
                 info['layers'].add(lname)
                 if 'tint' in q:
                     info['tints'].add(q['tint'])
-                if q.get('emissive'):
+                if not q.get('emissive') and self.ctm.emissive(q.get('sprite')):
+                    q2['emissive'] = True
+                    self.report.count('ctm.emissiveQuads')
+                if q2.get('emissive'):
                     info['emissive'] = True
         if not quads:
             info['empty'] = 1
-        particle = model.get('particle')
+        particle = (state.get('model') or {}).get('particle')
         mesh = {
             'ao': model.get('ao', True),
             'particle': self.textures.resolve(particle) if particle else MISSING,
@@ -718,5 +738,5 @@ class Generator:
             f.write(self.report.to_markdown())
 
 
-def generate(dump_dir, mc_dir, overrides_dir, out_dir):
-    return Generator(dump_dir, mc_dir, overrides_dir, out_dir).run()
+def generate(dump_dir, mc_dir, overrides_dir, out_dir, mods_zip=None, nebulaecraft=None):
+    return Generator(dump_dir, mc_dir, overrides_dir, out_dir, mods_zip, nebulaecraft).run()

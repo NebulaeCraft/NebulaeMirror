@@ -93,6 +93,11 @@ public final class MeshBakedModel implements BakedModel {
         return ItemOverrides.EMPTY;
     }
 
+    /** The prebuilt mesh, for renderers that emit this model's quads into another block's mesh. */
+    public Mesh mesh() {
+        return mesh;
+    }
+
     public int quadCount() {
         int n = 0;
         for (Direction d : Direction.values()) {

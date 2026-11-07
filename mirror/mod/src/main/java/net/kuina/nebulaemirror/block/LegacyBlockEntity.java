@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -28,7 +29,11 @@ public class LegacyBlockEntity extends BlockEntity {
     public static volatile Function<LegacyBlockEntity, Object> renderFactory = be -> null;
     public static volatile Consumer<LegacyBlockEntity> clientChanged = be -> { };
 
+    /** 1.12 TileEntities drawn by a per-frame renderer (text); every other legacy block entity is meshed with its chunk. */
+    public static final Set<String> TEXT_TILE_ENTITIES = Set.of("nebulaecraft:roadmark_text", "moarsigns:moarsign");
+
     private CompoundTag legacy = new CompoundTag();
+    private boolean textRenderer;
     private CompoundTag render = new CompoundTag();
     private volatile Object renderData;
     private volatile boolean renderDataBuilt;
@@ -71,7 +76,13 @@ public class LegacyBlockEntity extends BlockEntity {
         }
     }
 
+    /** True if this block needs the block-entity renderer (only text-carrying TileEntities do). */
+    public boolean hasTextRenderer() {
+        return textRenderer;
+    }
+
     private void invalidateRender() {
+        textRenderer = TEXT_TILE_ENTITIES.contains(legacy.getCompound("TileEntity").getString("id"));
         renderDataBuilt = false;
         renderData = null;
     }

@@ -273,6 +273,62 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual(zh['block.testmod.deco'], '装饰')
 
 
+class TrackKitTest(unittest.TestCase):
+    """extras/railcraft_tracks.json (MirrorDumper >= 0.2.0) -> meshes + assets/nebulaemirror/legacy table."""
+
+    def _fixture(self, tmp, with_extra):
+        fx = Fixture(tmp)
+        fx.block('railcraft:track_outfitted', ['x.BlockTrackOutfitted'],
+                 [('shape', 'enum', ['north_south', 'east_west']), ('ticking', 'bool', ['true', 'false'])],
+                 lambda s: ['north_south', 'east_west'].index(s['shape']) + 8 * (s['ticking'] == 'true'),
+                 sprite='testmod:blocks/deco')
+        if with_extra:
+            rail = fx.model('testmod:blocks/deco', layer='CUTOUT')
+            switch = fx.model('testmod:blocks/rail_fence', layer='CUTOUT')
+            _write(os.path.join(fx.dump, 'extras', 'railcraft_tracks.json'), {
+                'block': 'railcraft:track_outfitted',
+                'types': ['railcraft_reinforced'],
+                'kits': {'railcraft_turnout': {'renderer': 'UNIFIED', 'states': 8, 'slopes': False},
+                         'railcraft_booster': {'renderer': 'COMPOSITE', 'states': 2, 'slopes': True}},
+                'variants': {
+                    # a hidden composite kit bakes to the bare rail: both keys share one mesh
+                    'railcraft_reinforced|railcraft_booster|north_south|0': {'ao': True, 'layers': rail},
+                    'railcraft_reinforced|railcraft_booster|north_south|1': {'ao': True, 'layers': rail},
+                    'railcraft_reinforced|railcraft_turnout|north_south|3': {
+                        'ao': True, 'particle': 'testmod:blocks/deco', 'layers': switch},
+                },
+            })
+        fx.finish()
+        return fx
+
+    def test_variants_become_meshes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._fixture(tmp, True)
+            report = fx.run()
+            self.assertEqual(report.errors, [])
+            table = fx.read('assets/nebulaemirror/legacy/railcraft_tracks.json')
+            v = table['variants']
+            self.assertEqual(len(v), 3)
+            self.assertEqual(v['railcraft_reinforced|railcraft_booster|north_south|0'],
+                             v['railcraft_reinforced|railcraft_booster|north_south|1'])
+            turnout = v['railcraft_reinforced|railcraft_turnout|north_south|3']
+            self.assertNotEqual(turnout, v['railcraft_reinforced|railcraft_booster|north_south|0'])
+            self.assertEqual(table['kits']['railcraft_turnout'], {'renderer': 'UNIFIED', 'states': 8})
+            mesh = fx.read('assets/nebulaemirror/meshes/%s.json' % turnout.split('/', 1)[1])
+            self.assertEqual([q['layer'] for q in mesh['quads']], ['cutout'])
+            self.assertEqual(mesh['quads'][0]['sprite'], 'testmod:block/rail_fence')
+            self.assertEqual(report.counts['tracks.meshes'], 2)
+
+    def test_old_dump_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = self._fixture(tmp, False)
+            report = fx.run()
+            self.assertEqual(report.errors, [])
+            self.assertFalse(os.path.exists(os.path.join(fx.out, 'assets', 'nebulaemirror', 'legacy',
+                                                         'railcraft_tracks.json')))
+            self.assertTrue(any('railcraft_tracks.json' in w for w in report.warnings))
+
+
 class OverrideErrorTest(unittest.TestCase):
     def test_invalid_override_value_is_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -75,7 +75,7 @@ cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12-full
 
 | Item | Status |
 |---|---|
-| ArchitectureCraft shape blocks | Models and roofs render (P1); windows/cladding temporarily show the base material as a full block |
+| ArchitectureCraft shape blocks | Models, roofs and windows render (P1); cladding (unused in the world) shows the base material as a full block |
 | Chisels&Bits | Renders (P1) |
 | Entities (armor stands, item frames, paintings, mobs, minecarts) | Not imported yet (139 dropped in the test area). Decorative entities are later work |
 | Modded items in vanilla containers | Can't exist in 1.21 and are dropped (only the mirror's copy; the origin is unaffected) |

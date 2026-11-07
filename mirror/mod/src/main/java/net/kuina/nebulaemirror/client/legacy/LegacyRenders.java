@@ -16,11 +16,14 @@ import java.util.Map;
 
 /** Builds the client-side render object of a legacy block entity from its "Legacy" + "Render" tags. */
 public final class LegacyRenders {
+    private static final java.util.concurrent.atomic.AtomicInteger FAILURES = new java.util.concurrent.atomic.AtomicInteger();
+
     private LegacyRenders() {
     }
 
     public static String stats() {
-        return ChiselsRender.stats() + "; " + ArchitectureRender.stats();
+        return ChiselsRender.stats() + "; " + ArchitectureRender.stats() + "; " + RoadmarkText.stats() + "; "
+                + OutfittedTrack.stats();
     }
 
     public static Object create(LegacyBlockEntity be) {
@@ -30,10 +33,23 @@ public final class LegacyRenders {
             return switch (render.getString("Kind")) {
                 case "cb" -> chiselsAndBits(te, render);
                 case "ac" -> architectureCraft(te, render);
-                default -> null;
+                // Text blocks hold no 1.12 ids, so they need no derived "Render" data.
+                default -> switch (te.getString("id")) {
+                    case "nebulaecraft:roadmark_text" -> new RoadmarkText(
+                            te.contains("RoadmarkText", Tag.TAG_STRING) ? te.getString("RoadmarkText") : "\u5b57",
+                            te.getInt("RoadmarkColor") == 0xEFDE24 ? 0xEFDE24 : 0xFAFAFA);
+                    // Railcraft kit models hold no 1.12 ids either: the TileEntity names rail type and kit.
+                    case "railcraft:track.outfitted", "railcraft:track.outfitted.ticking" ->
+                            new OutfittedTrack(te, be.legacy().getInt("Meta"));
+                    case "moarsigns:moarsign" -> be.getLevel() == null ? null : new MoarSign(
+                            be.legacy().getString("Name"), be.legacy().getInt("Meta"), te, be.getLevel().registryAccess());
+                    default -> null;
+                };
             };
         } catch (Exception e) {
-            NebulaeMirror.LOG.debug("No legacy render for {}: {}", be.getBlockPos(), e.toString());
+            if (FAILURES.incrementAndGet() <= 20) {
+                NebulaeMirror.LOG.warn("No legacy render for {} ({}): {}", be.getBlockPos(), te.getString("id"), e.toString());
+            }
             return null;
         }
     }
@@ -46,7 +62,7 @@ public final class LegacyRenders {
         BlockState second = render.contains("Second", Tag.TAG_COMPOUND)
                 ? NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), render.getCompound("Second")) : null;
         return new ArchitectureRender(te.getInt("Shape"), te.getByte("side"), te.getByte("turn"),
-                te.getByte("offsetX"), base, second);
+                te.getByte("offsetX"), base, second, te.getInt("Disconnected"));
     }
 
     private static Object chiselsAndBits(CompoundTag te, CompoundTag render) throws Exception {

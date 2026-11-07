@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.kuina.nebulaemirror.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "client.BlockEntityRenderDispatcherMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
