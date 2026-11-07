@@ -33,7 +33,7 @@ For development, `cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs
 1. **Lift modded blocks out**: decode 1.12 IDs and metas through the source world's `level.dat` FML registry; IDs are never hard-coded. Every non-`minecraft` block is replaced with air in the arrays and recorded in a side table together with its TileEntity.
 2. **Vanilla upgrade**: the remaining purely vanilla chunk goes through Minecraft's own DataFixer (1343 → 3955). It uses the same context the server would for a "flat overworld", so no below-zero regeneration or terrain blending is scheduled. Signs, banners, beds, flower pots, double plants and so on are all handled by the official logic.
 3. **Write modded blocks back**: target states from `forward.json`, written into the 1.21 section palettes:
-   - Generated blocks that had a TE in 1.12, and unmapped blocks (`nebulaemirror:unknown`), get a `nebulaemirror:legacy` block entity whose `Legacy` tag = `{Name, Meta, TileEntity?}`, kept unchanged for write-back.
+   - Generated blocks that had a TE in 1.12, and unmapped blocks (`nebulaemirror:unknown`), get a `nebulaemirror:legacy` block entity whose `Legacy` tag = `{Name, Meta, TileEntity?}`, kept unchanged for write-back. For C&B/ArchitectureCraft a derived `Render` tag is added as well (see [legacy-renderers.md](legacy-renderers.md)).
    - Blocks whose target depends on neighbours (stairs/walls/fences/panes/fence gates/doors, including FutureMC/Quark mapped onto vanilla) are queued in `UpgradeData`, so 1.21 recomputes their connections and shapes on first load.
 4. **Finish**: remove `below_zero_retrogen`/`blending_data`/`Heightmaps`, set `Status=full` and `isLightOn=false`. The server relights the chunk and rebuilds heightmaps on load.
 
@@ -52,12 +52,31 @@ Also handled:
   - 302,346 legacy block entities (C&B, ArchitectureCraft, Railcraft tanks, NebulaeCraft tdt/roadmark_text and so on).
 - Screenshot tour (`./gradlew runTourClient -PtourWorld=world -PtourFile=/abs/tour.txt`, after copying the world into `run/tour/saves/`): roads/parking markings, viaduct and catenary, cable-stayed bridge, station, cherry trees and buildings render correctly.
 
+## Full-world import (2026-11-07, from the `2026.11.06` backup)
+
+- 1553 regions / **1,497,442 chunks, 0 failures, 31 minutes** (10 cores, `-Xmx8G`); output 7.9 GB.
+- Matches the `ops/scan` full-world scan exactly:
+  - 1,279,648,994 modded blocks;
+  - 1,107 unknown placeholders (`device_apple_iphone` ×1106, `countdown` ×1).
+- Also recorded in the report:
+  - 3,723,724 legacy block entities;
+  - 1,603,803 shape-update positions;
+  - 9,010 TileEntities dropped (from blocks that map onto vanilla blocks without a legacy BE, e.g. FutureMC barrels);
+  - 410,592 entities dropped (not imported yet).
+- Screenshot tour at 6 spots across the map (the 6 chunk clusters with the most NebulaeCraft blocks): skyscraper facades and interiors, roads, crosswalks, viaducts, NebulaeCraft colour-block pixel art, and Sakura maple and cherry trees all render correctly.
+
+Development command used:
+
+```bash
+cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12-full -PimportRunDir=run/full
+```
+
 ## Known limitations
 
 | Item | Status |
 |---|---|
-| ArchitectureCraft shape blocks | Look depends entirely on TE data; currently shown as the missing-texture placeholder (data preserved). Planned P1 renderer |
-| Chisels&Bits | Same: invisible for now, data preserved. Planned P1 renderer |
+| ArchitectureCraft shape blocks | Models and roofs render (P1); windows/cladding temporarily show the base material as a full block |
+| Chisels&Bits | Renders (P1) |
 | Entities (armor stands, item frames, paintings, mobs, minecarts) | Not imported yet (139 dropped in the test area). Decorative entities are later work |
 | Modded items in vanilla containers | Can't exist in 1.21 and are dropped (only the mirror's copy; the origin is unaffected) |
 | Online incremental sync, skipping locked zones | P2 |

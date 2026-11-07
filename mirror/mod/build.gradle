@@ -37,6 +37,7 @@ processResources {
     from(new File(genDir, 'mirror')) { into 'nebulaemirror/mirror' }
     from(new File(genDir, 'assets')) { into 'assets' }
     from(new File(genDir, 'data')) { into 'data' }
+    from('THIRD_PARTY_NOTICES.txt')
     doFirst {
         if (!new File(genDir, 'mirror/blocks.json').isFile()) {
             throw new GradleException("No generator output in ${genDir}; run mirror/generator/generate.py first")
@@ -65,12 +66,14 @@ loom {
             programArgs '--quickPlaySingleplayer', (project.findProperty('tourWorld') ?: 'world')
             vmArg "-Dnebulaemirror.tour=${project.findProperty('tourFile') ?: ''}"
         }
-        // Full import at server start: ./gradlew runImportServer -PimportSource=/path/to/1.12/world [-PimportRegions=x1,z1,x2,z2]
-        // Uses run/import as the server directory (void flat world, see docs/importer.md).
+        // Full import at server start: ./gradlew runImportServer -PimportSource=/path/to/1.12/world
+        //   [-PimportRegions=x1,z1,x2,z2] [-PimportRunDir=run/full] [-PimportHeap=8G]
+        // Default server directory run/import (void flat world, see docs/importer.md).
         importServer {
             server()
             name 'Import Server'
-            runDir 'run/import'
+            runDir(project.findProperty('importRunDir') ?: 'run/import')
+            vmArg "-Xmx${project.findProperty('importHeap') ?: '8G'}"
             if (project.hasProperty('importSource')) {
                 vmArg "-Dnebulaemirror.import=${project.property('importSource')}"
             }

@@ -6,6 +6,9 @@ import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.model.loading.v1.PreparableModelLoadingPlugin;
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
 import net.kuina.nebulaemirror.NebulaeMirror;
+import net.kuina.nebulaemirror.block.LegacyBlockEntity;
+import net.kuina.nebulaemirror.client.legacy.LegacyModel;
+import net.kuina.nebulaemirror.client.legacy.LegacyRenders;
 import net.kuina.nebulaemirror.block.MirrorBlockHolder;
 import net.kuina.nebulaemirror.block.MirrorBlockSupport;
 import net.minecraft.core.component.DataComponents;
@@ -77,7 +80,28 @@ public class NebulaeMirrorClient implements ClientModInitializer {
             }
         }
 
+        // Blocks carrying 1.12 TileEntity data (C&B, ArchitectureCraft, ...) draw from that data when they can.
+        LegacyBlockEntity.renderFactory = LegacyRenders::create;
+        LegacyBlockEntity.clientChanged = be -> {
+            if (be.getLevel() != null) {
+                be.getLevel().sendBlockUpdated(be.getBlockPos(), be.getBlockState(), be.getBlockState(), 8);
+            }
+        };
+        java.util.Set<ResourceLocation> legacyBlocks = new java.util.HashSet<>();
+        for (Map.Entry<Block, MirrorData.BlockDef> e : NebulaeMirror.BLOCKS.entrySet()) {
+            if (e.getValue().legacyBlockEntity()) {
+                legacyBlocks.add(ResourceLocation.parse(e.getValue().id()));
+            }
+        }
+
         PreparableModelLoadingPlugin.register(NebulaeMirrorClient::loadMeshes, (meshes, ctx) -> {
+            ctx.modifyModelAfterBake().register((model, context) -> {
+                var top = context.topLevelId();
+                if (model != null && top != null && !"inventory".equals(top.variant()) && legacyBlocks.contains(top.id())) {
+                    return new LegacyModel(model);
+                }
+                return model;
+            });
             Map<String, String> itemMeshes = NebulaeMirror.DATA.itemMeshes;
             ctx.resolveModel().register(context -> {
                 ResourceLocation id = context.id();

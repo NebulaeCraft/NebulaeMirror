@@ -1,5 +1,7 @@
 """Maps 1.12 sprite names to 1.21 texture ids and copies the files the mirror needs."""
+import json
 import os
+import re
 import shutil
 
 from . import MOD_ID
@@ -80,8 +82,26 @@ class TextureResolver:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         shutil.copyfile(src, dest)
         if os.path.exists(src + '.mcmeta'):
-            shutil.copyfile(src + '.mcmeta', dest + '.mcmeta')
+            self._copy_mcmeta(src + '.mcmeta', dest + '.mcmeta', target)
         return True
+
+    def _copy_mcmeta(self, src, dest, target):
+        """1.12 read .mcmeta leniently (trailing commas, comments); 1.21 is strict, so normalise or drop it."""
+        with open(src, encoding='utf-8-sig', errors='replace') as f:
+            text = f.read()
+        try:
+            data = json.loads(text)
+        except ValueError:
+            cleaned = re.sub(r'//[^\n]*', '', text)
+            cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
+            try:
+                data = json.loads(cleaned)
+                self.report.item('mcmetaRepaired', target)
+            except ValueError:
+                self.report.item('mcmetaDropped', target)
+                return
+        with open(dest, 'w', encoding='utf8') as f:
+            json.dump(data, f)
 
     def _missing(self, sprite):
         self.report.item('texturesMissing', sprite)

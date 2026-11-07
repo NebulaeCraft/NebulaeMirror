@@ -32,6 +32,7 @@ public final class ForwardTable {
     private final Target[] byState = new Target[4096 * 16];
     private final boolean[] modded = new boolean[4096];
     private final String[] names = new String[4096];
+    private final Map<String, Integer> idsByName = new HashMap<>();
     /** 1.12 biome id -> vanilla 1.12 biome id (modded biomes replaced, see generator biomes.json). */
     public final int[] biomeRemap = new int[256];
     public final Map<String, String> biomeNotes = new HashMap<>();
@@ -51,6 +52,7 @@ public final class ForwardTable {
                 continue;
             }
             names[id] = name;
+            idsByName.put(name, id);
             if (name.startsWith("minecraft:")) {
                 continue;
             }
@@ -108,6 +110,10 @@ public final class ForwardTable {
     /** Resolved target, or null if this (id, meta) has no mapping and must become an unknown placeholder. */
     public Target target(int id, int meta) {
         return byState[id << 4 | meta];
+    }
+
+    public Integer id(String name) {
+        return idsByName.get(name);
     }
 
     public String name(int id) {

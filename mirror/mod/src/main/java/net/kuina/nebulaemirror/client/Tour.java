@@ -62,6 +62,7 @@ final class Tour {
         }
         index++;
         if (index >= stops.size()) {
+            NebulaeMirror.LOG.info("Tour finished: {}", net.kuina.nebulaemirror.client.legacy.LegacyRenders.stats());
             mc.stop();
             return;
         }

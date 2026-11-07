@@ -44,6 +44,7 @@ public final class ChunkConverter {
             ResourceKey.create(Registries.CHUNK_GENERATOR, ResourceLocation.withDefaultNamespace("flat"));
 
     private final ForwardTable table;
+    private final StateResolver resolver;
     private final ImportStats stats;
     private final DataFixer fixer = DataFixers.getDataFixer();
     private final CompoundTag unknownState = new CompoundTag();
@@ -53,6 +54,7 @@ public final class ChunkConverter {
 
     public ChunkConverter(ForwardTable table, ImportStats stats) {
         this.table = table;
+        this.resolver = new StateResolver(table);
         this.stats = stats;
         unknownState.putString("Name", ForwardTable.UNKNOWN_ID);
     }
@@ -173,6 +175,11 @@ public final class ChunkConverter {
                     be.putInt("z", l.z());
                     be.putBoolean("keepPacked", false);
                     be.put("Legacy", l.legacy());
+                    CompoundTag render = RenderDataDeriver.derive(l.legacy().getCompound("TileEntity"), resolver);
+                    if (render != null) {
+                        be.put("Render", render);
+                        stats.renderData.incrementAndGet();
+                    }
                     blockEntities.add(be);
                 }
                 if (l.shapeUpdate()) {

@@ -46,13 +46,17 @@ final class SelfTest {
 
     private static void run(Minecraft mc) throws IOException {
         BakedModel missing = mc.getModelManager().getMissingModel();
-        int states = 0, meshStates = 0, items = 0, meshItems = 0, quads = 0, emptyStates = 0;
+        int states = 0, meshStates = 0, items = 0, meshItems = 0, quads = 0, emptyStates = 0, legacyWrapped = 0;
         JsonArray missingStates = new JsonArray();
         JsonArray missingItems = new JsonArray();
         for (Map.Entry<Block, MirrorData.BlockDef> e : NebulaeMirror.BLOCKS.entrySet()) {
             for (BlockState s : e.getKey().getStateDefinition().getPossibleStates()) {
                 states++;
                 BakedModel m = mc.getBlockRenderer().getBlockModel(s);
+                if (m instanceof net.kuina.nebulaemirror.client.legacy.LegacyModel lm) {
+                    legacyWrapped++;
+                    m = lm.getWrappedModel();
+                }
                 if (m instanceof MeshBakedModel mm) {
                     meshStates++;
                     int n = mm.quadCount();
@@ -77,6 +81,7 @@ final class SelfTest {
         out.addProperty("states", states);
         out.addProperty("statesWithMesh", meshStates);
         out.addProperty("statesWithEmptyMesh", emptyStates);
+        out.addProperty("statesWithLegacyRenderer", legacyWrapped);
         out.addProperty("quads", quads);
         out.addProperty("items", items);
         out.addProperty("itemsWithMesh", meshItems);

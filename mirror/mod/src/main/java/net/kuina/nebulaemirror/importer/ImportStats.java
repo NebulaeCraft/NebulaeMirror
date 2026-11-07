@@ -15,6 +15,7 @@ public final class ImportStats {
     public final AtomicLong moddedBlocks = new AtomicLong();
     public final AtomicLong unknownBlocks = new AtomicLong();
     public final AtomicLong legacyBlockEntities = new AtomicLong();
+    public final AtomicLong renderData = new AtomicLong();
     public final AtomicLong droppedTileEntities = new AtomicLong();
     public final AtomicLong droppedEntities = new AtomicLong();
     public final AtomicLong shapeUpdates = new AtomicLong();
@@ -42,6 +43,7 @@ public final class ImportStats {
         o.addProperty("moddedBlocks", moddedBlocks.get());
         o.addProperty("unknownBlocks", unknownBlocks.get());
         o.addProperty("legacyBlockEntities", legacyBlockEntities.get());
+        o.addProperty("renderData", renderData.get());
         o.addProperty("droppedTileEntities", droppedTileEntities.get());
         o.addProperty("droppedEntities", droppedEntities.get());
         o.addProperty("shapeUpdates", shapeUpdates.get());
