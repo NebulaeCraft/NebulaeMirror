@@ -1,6 +1,6 @@
 """Railcraft 12 outfitted tracks: the dumper's TileEntity-driven model variants -> meshes + a lookup table.
 
-The dump (MirrorDumper >= 0.2.1) holds `extras/railcraft_tracks.json`: Railcraft's composite model baked for every
+The dump (MirrorDumper >= 1.2, formerly 0.2.1) holds `extras/railcraft_tracks.json`: Railcraft's composite model baked for every
 rail type x kit x shape x kit render state, keyed "<rail>|<kit>|<shape>|<state>" with the TileEntity's own NBT
 names. Each variant becomes an ordinary mesh (`nebulaemirror:mesh/<hash>`, deduplicated with every other mesh), and
 
@@ -27,7 +27,7 @@ def convert(dump_root, assets_dir, mesh_fn, report, needed):
     path = os.path.join(dump_root, EXTRA)
     if not os.path.isfile(path):
         if needed:
-            report.warn(BLOCK, 'dump has no %s (MirrorDumper < 0.2.1, or the export failed: see the dump\'s '
+            report.warn(BLOCK, 'dump has no %s (MirrorDumper < 1.2 / 0.2.1, or the export failed: see the dump\'s '
                         'errors.json, stage trackKits): outfitted tracks keep the default kit model'
                         % EXTRA.replace(os.sep, '/'))
         return None

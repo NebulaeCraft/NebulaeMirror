@@ -113,6 +113,7 @@ public class NebulaeMirror implements ModInitializer {
         ZoneManager.register();
         net.kuina.nebulaemirror.writeback.EditGuard.register();
         MirrorCommands.register();
+        net.kuina.nebulaemirror.worldedit.WorldEditAliases.register();
         LOG.info("Registered {} mirror blocks {} in {} ms", BLOCKS.size(), archetypes,
                 System.currentTimeMillis() - start);
     }

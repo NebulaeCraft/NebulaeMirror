@@ -25,7 +25,7 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
 | `assets/<ns>/textures/block/…` | client | Modded textures. Vanilla textures reference 1.21's own assets (`minecraft:block/black_concrete` and so on); only when no equivalent exists is the 1.12 file shipped under `nebulaemirror:block/legacy/minecraft/…` |
 | `assets/<ns>/lang/{en_us,zh_cn}.json` | client | Block names plus each subtype's legacy translation key |
 | `assets/nebulaemirror/optifine/ctm/<ns>/*.properties` + `textures/block/ctm/…` | client with Continuity | Chisel's CTM 1.12 connected/patterned/random textures converted to Continuity (OptiFine-format) rules, with the tiles cut out of CTM's sheets (see below) |
-| `assets/nebulaemirror/legacy/railcraft_tracks.json` | client | Railcraft outfitted track `"<rail>\|<kit>\|<shape>\|<state>"` → mesh, from the dump's `extras/railcraft_tracks.json` (MirrorDumper 0.2.1; `nebgen/tracks.py`). Missing from older dumps: the generator warns and tracks keep the default-kit model |
+| `assets/nebulaemirror/legacy/railcraft_tracks.json` | client | Railcraft outfitted track `"<rail>\|<kit>\|<shape>\|<state>"` → mesh, from the dump's `extras/railcraft_tracks.json` (MirrorDumper 1.2, formerly 0.2.1; `nebgen/tracks.py`). Missing from older dumps: the generator warns and tracks keep the default-kit model |
 | `assets/nebulaemirror/textures/moarsigns/…`, `assets/nebulaemirror/roadmark/*.ttf` | client | MoarSigns sign textures and the NebulaeCraft road-marking fonts for the text renderers |
 | `report.json` / `report.md` | humans | Counts, errors, warnings (grouped by type, listing the blocks), missing textures, foreign item subtypes, and so on |
 

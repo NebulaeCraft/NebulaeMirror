@@ -10,13 +10,18 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] Mirror mod `mirror/mod/` (Fabric 1.21.1): block registration, mesh models, items/creative tabs, legacy TE storage, unknown placeholder, see [docs/mirror-mod.md](docs/mirror-mod.md)
 - [x] FutureMC/Quark → 1.21 vanilla overrides (`mapping/overrides/`)
 - [x] Importer: full offline import (DFU + modded block substitution), see [docs/importer.md](docs/importer.md)
-- [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
+- [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 1.2 / 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
 - [x] P2 online incremental sync: pull (RCON `save-off`/`save-all flush` + rsync + `save-on`), timestamp + content-hash change detection, IO replacement of unloaded chunks / block diff of loaded chunks, in-mod timer + launchd keep-alive, see [docs/sync.md](docs/sync.md) (still to do: the first test against the real origin)
 - [x] P3 write-back, see [docs/writeback.md](docs/writeback.md):
   - [x] step 1: reverse mapping (vanilla via DataFixer, mods via reverse.json), TileEntity/item downgrade, zones (`/nebulaemirror zone checkout|lint|diff|abandon`), patch file
   - [x] step 2: bridge mod `legacy/bridge/` (apply patch quietly, undo file, rollback, conflict check), see [docs/bridge.md](docs/bridge.md)
   - [x] step 3: zone lock at the origin (Forge events + FAWE mask), local HTTP API with token, `zone submit` with round-trip check, LuckPerms permission nodes
 - [x] Chat sync: chat, joins and leaves both ways through the bridge, formats and switches in the mirror's sync config, see [docs/chat.md](docs/chat.md)
+- [x] WorldEdit short commands (`//s`, `//r`, `//c`, …, configurable), see [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
+
+## Versions
+
+All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
 
 ## Layout
 

@@ -41,6 +41,7 @@ It writes into `mirror/mod/run/selftest/`:
 | `nebulaemirror:legacy` BlockEntity | Generic blocks that had a TileEntity in 1.12, plus `nebulaemirror:unknown`, keep the original NBT unchanged (`Legacy` tag) and sync it to clients for P1 renderers (see [legacy-renderers.md](legacy-renderers.md)). Most are meshed with their chunk; only text blocks use a block-entity renderer, and a client mixin hides that renderer from all other legacy block entities |
 | `nebulaemirror:unknown` | Placeholder for unmapped 1.12 blocks; its data is preserved for write-back |
 | Incremental sync | `sync/` package: the `/nebulaemirror sync ...` commands, the timer, change detection and live/disk application, see [sync.md](sync.md). Server side only; the common mixin `ChunkMapAccessor` lets it tell whether a chunk is in memory |
+| WorldEdit aliases | `worldedit/` package: FAWE-style short commands (`//s` → `//set`, ...) that re-run the full WorldEdit command; list in `config/nebulaemirror-we-aliases.json`, see [worldedit-aliases.md](worldedit-aliases.md) |
 
 ## Current results (full modpack dump)
 
@@ -51,6 +52,6 @@ It writes into `mirror/mod/run/selftest/`:
 ## Known limitations (planned for later phases)
 
 - Item icons show only each block's default subtype; in-world placement is correct.
-- TileEntity-driven looks are covered by P1 ([legacy-renderers.md](legacy-renderers.md)). Railcraft outfitted tracks draw their kit from TE data once the dump has `extras/railcraft_tracks.json` (MirrorDumper 0.2.1); with an older dump they keep the static default-kit model. Still from the static model: Quark coloured flowerpot contents.
+- TileEntity-driven looks are covered by P1 ([legacy-renderers.md](legacy-renderers.md)). Railcraft outfitted tracks draw their kit from TE data once the dump has `extras/railcraft_tracks.json` (MirrorDumper 1.2 / 0.2.1); with an older dump they keep the static default-kit model. Still from the static model: Quark coloured flowerpot contents.
 - MoarSigns item icons are empty (1.12 drew them with the TESR too).
 - Vanilla blocks need nothing from this mod: the importer converts them with DFU.

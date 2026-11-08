@@ -194,7 +194,7 @@ public final class ChatSync {
                 polling = false;
                 Throwable cause = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
                 if (cause instanceof BridgeClient.BridgeException be && be.status == 404) {
-                    pollError = "the origin's bridge is older than 0.3.0 (no chat relay); update it, then sync reload";
+                    pollError = "the origin's bridge is older than 1.3 (formerly 0.3.0; no chat relay); update it, then sync reload";
                     NebulaeMirror.LOG.warn("Chat sync: {}", pollError);
                     return;
                 }

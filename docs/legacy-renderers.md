@@ -49,7 +49,7 @@ All 11,785 tank walls/valves in the world are unformed (`pattern: -1`, no master
 
 The mirror doesn't recompose any of that. The data flows like this:
 
-1. **Dumper 0.2.1** (`TrackKitExporter`, reflection only) builds the extended block state for every rail type × kit × shape × render state and bakes Railcraft's own composite model with the aura off. The result goes to `extras/railcraft_tracks.json` (see [dumper.md](dumper.md)).
+1. **Dumper 1.2** (formerly 0.2.1) (`TrackKitExporter`, reflection only) builds the extended block state for every rail type × kit × shape × render state and bakes Railcraft's own composite model with the aura off. The result goes to `extras/railcraft_tracks.json` (see [dumper.md](dumper.md)).
 2. **Generator** (`nebgen/tracks.py`) turns each variant into an ordinary mesh, deduplicated with all the others, plus `assets/nebulaemirror/legacy/railcraft_tracks.json` (`"<rail>|<kit>|<shape>|<state>"` → `nebulaemirror:mesh/<hash>`).
 3. **Client**: the model loading plugin loads the table and bakes its meshes as extra models. `client/legacy/OutfittedTrack` is a chunk-meshed `LegacyRender` (no BlockEntityRenderer). While the chunk is meshed it computes the key, looks up the baked mesh, emits it into the chunk mesh and suppresses the static default-kit model. When the key is unknown (old generator output, unknown kit), the static model is drawn as before.
 
@@ -86,7 +86,7 @@ Converted at generation time into Continuity rules (see [generator.md](generator
 
 | Item | Status |
 |---|---|
-| Railcraft outfitted tracks | Drawn from TE data once the dump is made with MirrorDumper 0.2.1 (`extras/railcraft_tracks.json`); with an older dump, the default kit model. Kits locking/delayed/detector/coupler/locomotive/throttle (not in the world) always show state 0 |
+| Railcraft outfitted tracks | Drawn from TE data once the dump is made with MirrorDumper 1.2 / 0.2.1 (`extras/railcraft_tracks.json`); with an older dump, the default kit model. Kits locking/delayed/detector/coupler/locomotive/throttle (not in the world) always show state 0 |
 | ArchitectureCraft cladding, smart ridge/valley roofs | Not used in the world; full block of the base material |
 | CTM `random`/`AR` | Same tiles as 1.12, but which block gets which tile differs |
 | CTM `pillar` | Only vertical columns connect |

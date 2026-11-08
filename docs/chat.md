@@ -1,10 +1,10 @@
 # Chat sync (origin ⇄ mirror)
 
-Player chat, joins and leaves are shown on the other server. Everything is configured on the **mirror**, in the `chat` section of `config/nebulaemirror-sync.json`. The origin's bridge mod (0.3.0 or later, see [bridge.md](bridge.md)) only relays and has no settings of its own.
+Player chat, joins and leaves are shown on the other server. Everything is configured on the **mirror**, in the `chat` section of `config/nebulaemirror-sync.json`. The origin's bridge mod (1.3 or later, formerly 0.3.0, see [bridge.md](bridge.md)) only relays and has no settings of its own.
 
 ## Setup
 
-1. Install bridge 0.3.0 on the origin (`legacy/bridge/build/libs/MirrorBridge-1.12.2-0.3.0.jar`) and restart it.
+1. Install bridge 1.3 on the origin (`legacy/bridge/build/libs/MirrorBridge-1.12.2-1.3.jar`; an installed 0.3.0 is the same code) and restart it.
 2. Fill in `bridge.url`/`bridge.token` in the mirror's sync config, as for write-back. Chat sync does not need `source`, so it also works with sync switched off.
 3. Set `chat.enabled` to `true`, then run `/nebulaemirror sync reload` (no restart needed). The first start of the new mirror mod adds the `chat` section with the defaults below, switched off.
 
@@ -55,7 +55,7 @@ The mirror always connects to the bridge, never the other way round, using the s
 - **Bridge unreachable**: the mirror logs one warning and keeps retrying (backoff 5 s up to 60 s). It logs again when the bridge is back. Mirror messages sent meanwhile are dropped, not queued.
 - **Bridge restarted**: the mirror shows what happened at the origin since the restart, as long as it fits in the 200-entry buffer. Nothing from before the restart is shown twice.
 - **Mirror restarted or reloaded**: it starts from the origin's current position. Origin chat from while the mirror was down is not replayed.
-- **Bridge older than 0.3.0**: the mirror logs that the bridge needs updating and stops polling until the next `sync reload`.
+- **Bridge older than 1.3 (0.3.0)**: the mirror logs that the bridge needs updating and stops polling until the next `sync reload`.
 
 ## Verification (dev servers, 2026-11-08)
 

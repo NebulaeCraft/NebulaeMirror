@@ -25,16 +25,16 @@ Either way works:
 
 The game freezes for a few seconds up to a few minutes while it runs. Output goes to `<game dir>/mirrordump/<timestamp>/`; copy it into this repo's `dumps/`.
 
-## Re-dumping for Railcraft outfitted tracks (MirrorDumper 0.2.1)
+## Re-dumping for Railcraft outfitted tracks (MirrorDumper 1.2, formerly 0.2.1)
 
 The mirror draws outfitted tracks (turnouts, wyes, buffer stops, boosters, …) from their TileEntity only once the dump contains `extras/railcraft_tracks.json`. Dumps made with 0.1.0 (such as `dumps/full-20261107-145222`) don't have it, and neither does a 0.2.0 dump from a production client: 0.2.0 looked up `TrackType.getName()` by name, but in Railcraft's production jar that method is reobfuscated to `func_176610_l`, so the export failed with `NoSuchMethodException` in `errors.json`. (The dev client remaps it back to `getName`, which hid the bug.) For all of these the generator then warns `dump has no extras/railcraft_tracks.json` and tracks keep the default-kit model. To fill it in, on the machine with the full 1.12 client (`dumps/full` is a symlink to the current full dump, `full-20261107-200107` made with 0.2.1; repoint it after a new dump):
 
-1. Build the dumper here and replace `MirrorDumper-1.12.2-0.1.0.jar` in the client's `mods/` with `legacy/dumper/build/libs/MirrorDumper-1.12.2-0.2.1.jar` (remove any 0.2.0 jar).
+1. Build the dumper here and replace `MirrorDumper-1.12.2-0.1.0.jar` in the client's `mods/` with `legacy/dumper/build/libs/MirrorDumper-1.12.2-1.2.jar` (remove any 0.2.0 or 0.2.1 jar).
 2. Run a full dump as usual (auto mode or `/mirrordump`). Railcraft must be dumped in full: if you pass `mods=`, include `railcraft`. Don't wear the track goggles' aura during `/mirrordump`: the bake reproduces what players normally see, and Railcraft (this server's build) hides kits on electric/high-speed/reinforced rails, except buffer stops, unless that aura is on.
 3. Check the log line `Dump finished: …` and `manifest.json` → `summary.trackKitVariants`. It must not be 0; the Railcraft 12.1.1 pack gives 4214 ( every rail type × kit × shape × state, 1046 distinct models). Railcraft-related problems are logged in `errors.json` under `railcraft:track_outfitted` / stage `trackKits`.
 4. Copy the dump into `dumps/`, re-run the generator (`report.md` counts `tracks.variants` / `tracks.meshes`) and rebuild the mod. No re-import is needed: the client reads the TileEntity data the import already stored.
 
-The extra file only adds models; everything else in the dump is unchanged, so a full re-dump with 0.2.1 replaces the earlier dump one to one. Verified on the modpack client with `20261107-200107`: `trackKitVariants` 4214, no track errors.
+The extra file only adds models; everything else in the dump is unchanged, so a full re-dump with 1.2 (or 0.2.1) replaces the earlier dump one to one. Verified on the modpack client with `20261107-200107`: `trackKitVariants` 4214, no track errors.
 
 ## Output format (schema 1)
 
@@ -48,7 +48,7 @@ The extra file only adds models; everything else in the dump is unchanged, so a 
 | `sprites.json` | Size, frame count and source of each sprite (`copied`/`atlas`/`missing`/`vanilla-skipped`) |
 | `lang/<ns>/{en_us,zh_cn}.lang` | Language files for each namespace |
 | `biomes.json` | Biome temperature, rainfall and grass/foliage/water colours |
-| `extras/railcraft_tracks.json` | (0.2.1+) Railcraft outfitted tracks: the composite model baked for every rail type × kit × shape × kit render state, keyed `<rail>\|<kit>\|<shape>\|<state>` with the TileEntity's own NBT names, each with the same `ao`/`particle`/`layers` refs as a state's `model`. Written only when Railcraft is loaded and dumped in full |
+| `extras/railcraft_tracks.json` | (1.2+, formerly 0.2.1+) Railcraft outfitted tracks: the composite model baked for every rail type × kit × shape × kit render state, keyed `<rail>\|<kit>\|<shape>\|<state>` with the TileEntity's own NBT names, each with the same `ao`/`particle`/`layers` refs as a state's `model`. Written only when Railcraft is loaded and dumped in full |
 | `errors.json` | Every exception, by block, state and stage |
 
 By default `minecraft:*` blocks only get properties and the meta table, with no quads exported. The mirror uses 1.21's own vanilla assets, and vanilla blocks are converted by DFU. The vanilla textures that modded models reference are copied by default (`noVanillaTextures` turns this off). The generator prefers the renamed 1.21 texture and only falls back to these 1.12 PNGs when there is no 1.21 equivalent.
@@ -65,6 +65,6 @@ By default `minecraft:*` blocks only get properties and the meta table, with no 
 ## Known gaps (to be covered by other components)
 
 - `roadmark_text` has no quads; it is drawn entirely by a TESR, which will be ported in P1.
-- Chisels&Bits / ArchitectureCraft / Railcraft tank appearances depend on TE data; the dump only contains their base models. Railcraft outfitted tracks are the exception: 0.2.1 bakes their TE-driven variants into `extras/railcraft_tracks.json`.
+- Chisels&Bits / ArchitectureCraft / Railcraft tank appearances depend on TE data; the dump only contains their base models. Railcraft outfitted tracks are the exception: 1.2 (0.2.1) bakes their TE-driven variants into `extras/railcraft_tracks.json`.
 - For CTM blocks only the base (unconnected) quads are exported; connection rules stay in the copied mcmeta.
 - There are still 1106 `nebulaecraft:device_apple_iphone` and 1 `nebulaecraft:countdown` in the world. Both were removed from NebulaeCraft long ago (absent from 2.25 and 2.26), and the origin's FML registry still reserves their IDs. The mirror treats them as unknown blocks and passes them through unchanged.

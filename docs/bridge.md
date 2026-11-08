@@ -6,7 +6,7 @@
 - offers a local HTTP API the mirror uses to lock, unlock and submit;
 - applies the write-back patches (see [writeback.md](writeback.md)) to the overworld;
 - keeps an undo file per job and can roll a job back.
-- relays chat, joins and leaves between the two servers (0.3.0; see [chat.md](chat.md)).
+- relays chat, joins and leaves between the two servers (1.3, formerly 0.3.0; see [chat.md](chat.md)).
 
 ## Build and install
 
@@ -14,7 +14,7 @@
 cd legacy/bridge && JAVA_HOME=$(/usr/libexec/java_home -v 1.8) ./gradlew build
 ```
 
-Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-0.3.0.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
+Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-1.3.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
 
 | Path | Contents |
 |---|---|
