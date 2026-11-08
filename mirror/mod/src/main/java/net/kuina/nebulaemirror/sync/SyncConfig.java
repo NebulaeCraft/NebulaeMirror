@@ -33,6 +33,24 @@ public final class SyncConfig {
     public String regions = "";
     /** Block areas the sync never touches (inclusive; y defaults to the whole height). */
     public List<SyncGuard.Box> exclude = new ArrayList<>();
+    /**
+     * Players and WorldEdit may only change blocks inside zones they checked out (see EditGuard); edits outside
+     * zones are re-applied from the origin at the next sync either way.
+     */
+    public boolean protectOutsideZones = true;
+    /** The origin's MirrorBridge HTTP API (zone lock and submit). Empty url: zones are not locked at the origin. */
+    public Bridge bridge = new Bridge();
+
+    public static final class Bridge {
+        /** e.g. http://127.0.0.1:21201 (bridge config: httpHost/httpPort) */
+        public String url = "";
+        /** The bridge's token (its config/mirrorbridge.cfg). */
+        public String token = "";
+
+        public boolean enabled() {
+            return url != null && !url.isBlank();
+        }
+    }
 
     public static final String FILE = "nebulaemirror-sync.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -49,12 +67,24 @@ public final class SyncConfig {
             Files.writeString(f, GSON.toJson(c), StandardCharsets.UTF_8);
             return c;
         }
-        SyncConfig c = GSON.fromJson(Files.readString(f, StandardCharsets.UTF_8), SyncConfig.class);
+        String text = Files.readString(f, StandardCharsets.UTF_8);
+        SyncConfig c = GSON.fromJson(text, SyncConfig.class);
+        com.google.gson.JsonObject present = com.google.gson.JsonParser.parseString(text).getAsJsonObject();
+        if (!present.keySet().containsAll(GSON.toJsonTree(new SyncConfig()).getAsJsonObject().keySet())) {
+            // Written by an older version: add the new settings (with their defaults) so they can be filled in.
+            if (c.bridge == null) {
+                c.bridge = new Bridge();
+            }
+            Files.writeString(f, GSON.toJson(c), StandardCharsets.UTF_8);
+        }
         if (c.pullCommand == null) {
             c.pullCommand = new ArrayList<>();
         }
         if (c.exclude == null) {
             c.exclude = new ArrayList<>();
+        }
+        if (c.bridge == null) {
+            c.bridge = new Bridge();
         }
         c.threads = Math.max(1, c.threads);
         c.tickBudgetMillis = Math.max(1, c.tickBudgetMillis);

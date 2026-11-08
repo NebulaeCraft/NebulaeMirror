@@ -38,10 +38,10 @@ public final class MirrorCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> dispatcher.register(
-                Commands.literal("nebulaemirror").requires(s -> s.hasPermission(2))
+                Commands.literal("nebulaemirror")
                         .then(SyncCommands.tree())
                         .then(ZoneCommands.tree())
-                        .then(Commands.literal("stats")
+                        .then(Commands.literal("stats").requires(MirrorPermissions.require(MirrorPermissions.STATS, 2))
                                 .then(Commands.argument("x1", IntegerArgumentType.integer())
                                         .then(Commands.argument("z1", IntegerArgumentType.integer())
                                                 .then(Commands.argument("x2", IntegerArgumentType.integer())

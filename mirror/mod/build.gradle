@@ -11,6 +11,8 @@ def genDir = file(project.findProperty('genDir') ?: "${rootDir}/../../work/gen")
 
 repositories {
     mavenCentral()
+    // WorldEdit core API: zone checkout from the player's WorldEdit selection (WorldEdit itself stays optional).
+    maven { url 'https://maven.enginehub.org/repo/' }
     // Continuity (connected textures) for the dev client only; players install it from the client modpack.
     exclusiveContent {
         forRepository { maven { url 'https://api.modrinth.com/maven' } }
@@ -23,6 +25,13 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    compileOnly('com.sk89q.worldedit:worldedit-core:7.3.8') { transitive = false }
+    if (project.hasProperty('withWorldEdit')) { // dev servers/clients with WorldEdit: -PwithWorldEdit
+        modLocalRuntime "maven.modrinth:worldedit:7.3.8"
+    }
+    // Permission nodes for LuckPerms-Fabric (falls back to operator levels without a permissions mod).
+    modImplementation('me.lucko:fabric-permissions-api:0.3.1') { transitive = false }
+    include('me.lucko:fabric-permissions-api:0.3.1')
     if (!project.hasProperty('noContinuity')) { // -PnoContinuity: compare against unconnected textures
         modLocalRuntime "maven.modrinth:continuity:${project.continuity_version}"
     }

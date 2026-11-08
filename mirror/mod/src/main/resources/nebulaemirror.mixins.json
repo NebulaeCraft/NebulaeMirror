@@ -4,7 +4,10 @@
   "package": "net.kuina.nebulaemirror.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ChunkMapAccessor"
+    "ChunkMapAccessor",
+    "ChunkAccessMixin",
+    "LevelChunkMixin",
+    "ChunkHolderMixin"
   ],
   "client": [
     "client.BlockEntityRenderDispatcherMixin"

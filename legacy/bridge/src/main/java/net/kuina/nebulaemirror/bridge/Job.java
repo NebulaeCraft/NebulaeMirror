@@ -29,7 +29,7 @@ import java.util.Map;
  * {@code /mirrorbridge rollback <id>} applies the undo file as a new job (whose Expect is what this job wrote).
  */
 final class Job {
-    enum Phase { CHECK, APPLY, DONE, REFUSED, FAILED, CANCELLED, INTERRUPTED }
+    enum Phase { CHECK, APPLY, VERIFY, DONE, REFUSED, FAILED, CANCELLED, INTERRUPTED }
 
     private static final int SAMPLES = 20;
 
@@ -51,6 +51,8 @@ final class Job {
     int changed;
     int unchanged;
     int tileEntityFailures;
+    int verifyMismatches;
+    final List<String> mismatches = new ArrayList<>();
     String error;
     long finished;
     /** Inbox file removed once the job is done (a refused patch stays there for a forced retry). */
@@ -67,7 +69,7 @@ final class Job {
     }
 
     boolean running() {
-        return phase == Phase.CHECK || phase == Phase.APPLY;
+        return phase == Phase.CHECK || phase == Phase.APPLY || phase == Phase.VERIFY;
     }
 
     /** Works until {@code deadline} (System.nanoTime). */
@@ -77,6 +79,8 @@ final class Job {
                 check(world, deadline);
             } else if (phase == Phase.APPLY) {
                 apply(world, deadline);
+            } else if (phase == Phase.VERIFY) {
+                verify(world, deadline);
             }
         } catch (Exception e) {
             phase = Phase.FAILED;
@@ -165,10 +169,46 @@ final class Job {
             tileEntityFailures += setter.tileEntityFailures;
         }
         if (cursor >= entries.size()) {
+            cursor = 0;
+            phase = Phase.VERIFY;
+        }
+    }
+
+    /** Reads every entry back: block, meta and (where the patch had one) a TileEntity of the same id. */
+    @SuppressWarnings("deprecation")
+    private void verify(WorldServer world, long deadline) {
+        List<Patch.Entry> entries = patch.entries;
+        while (cursor < entries.size() && System.nanoTime() < deadline) {
+            Patch.Entry e = entries.get(cursor);
+            BlockPos pos = new BlockPos(e.x, e.y, e.z);
+            IBlockState cur = world.getBlockState(pos);
+            String curName = String.valueOf(Block.REGISTRY.getNameForObject(cur.getBlock()));
+            int want = states[cursor].getBlock().getMetaFromState(states[cursor]);
+            String problem = null;
+            if (!curName.equals(e.name) || cur.getBlock().getMetaFromState(cur) != want) {
+                problem = "has " + curName + ":" + cur.getBlock().getMetaFromState(cur) + " instead of " + e.name + ":" + want;
+            } else if (e.tileEntity != null) {
+                TileEntity te = world.getTileEntity(pos);
+                String id = e.tileEntity.getString("id");
+                NBTTagCompound now = te == null ? null : te.writeToNBT(new NBTTagCompound());
+                if (now == null || !id.equals(now.getString("id"))) {
+                    problem = "has no " + id + " TileEntity";
+                }
+            }
+            if (problem != null) {
+                verifyMismatches++;
+                if (mismatches.size() < SAMPLES) {
+                    mismatches.add(e.x + " " + e.y + " " + e.z + " " + problem);
+                }
+            }
+            cursor++;
+        }
+        if (cursor >= entries.size()) {
             phase = Phase.DONE;
             finished = System.currentTimeMillis();
-            MirrorBridge.LOG.info("Job {} done: {} changed, {} already as patched, {} TileEntity failures in {} ms",
-                    id, changed, unchanged, tileEntityFailures, finished - started);
+            MirrorBridge.LOG.info("Job {} done: {} changed, {} already as patched, {} TileEntity failures, {} not as "
+                    + "patched on read-back, in {} ms", id, changed, unchanged, tileEntityFailures, verifyMismatches,
+                    finished - started);
         }
     }
 
@@ -197,6 +237,10 @@ final class Job {
         o.addProperty("changed", changed);
         o.addProperty("unchanged", unchanged);
         o.addProperty("tileEntityFailures", tileEntityFailures);
+        o.addProperty("verifyMismatches", verifyMismatches);
+        JsonArray mm = new JsonArray();
+        mismatches.forEach(mm::add);
+        o.add("mismatchSamples", mm);
         o.addProperty("conflicts", conflictCount);
         JsonArray c = new JsonArray();
         conflicts.forEach(c::add);
@@ -219,6 +263,8 @@ final class Job {
                 return kind + " " + id + " done: " + changed + " blocks changed, " + unchanged + " already as patched"
                         + (tileEntityFailures > 0 ? ", " + tileEntityFailures + " TileEntities could not be created" : "")
                         + (conflictCount > 0 ? " (" + conflictCount + " conflicts overwritten)" : "")
+                        + (verifyMismatches > 0 ? "; " + verifyMismatches + " NOT as patched on read-back: "
+                        + String.join("; ", mismatches.subList(0, Math.min(3, mismatches.size()))) : "")
                         + "; undo with /mirrorbridge rollback " + id;
             case REFUSED:
                 return kind + " " + id + " refused: " + error + (conflicts.isEmpty() ? "" : "\n  " + String.join("\n  ",

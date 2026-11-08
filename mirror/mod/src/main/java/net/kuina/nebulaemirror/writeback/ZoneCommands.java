@@ -2,14 +2,17 @@ package net.kuina.nebulaemirror.writeback;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import net.kuina.nebulaemirror.MirrorPermissions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 import java.nio.file.Path;
@@ -17,11 +20,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * /nebulaemirror zone checkout <name> <from> <to> | list | info <name> | lint <name> | diff <name> | abandon <name>
+ * /nebulaemirror zone checkout <name> [<from> <to>] | list | info <name> | lint <name> | diff <name>
+ *                    | submit <name> [force] | abandon <name>
  * <p>
- * P3 step 1 works on the mirror alone: checkout refreshes the area from the origin and snapshots it (and the
- * sync then leaves it alone), lint and diff compute what would be written back and write patch.nbt. Sending the
- * patch to the origin (bridge mod) is the next step.
+ * checkout without corners uses the player's WorldEdit selection (its bounding box for non-cuboid shapes).
+ * Permission nodes: see {@link MirrorPermissions} (zone.checkout / view / submit / abandon; zone.others to act
+ * on zones checked out by someone else).
  */
 public final class ZoneCommands {
     private ZoneCommands() {
@@ -34,19 +38,31 @@ public final class ZoneCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> tree() {
         return Commands.literal("zone")
-                .then(Commands.literal("checkout")
+                .then(Commands.literal("checkout").requires(perm(MirrorPermissions.ZONE_CHECKOUT))
                         .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ZoneCommands::checkoutSelection)
                                 .then(Commands.argument("from", BlockPosArgument.blockPos())
                                         .then(Commands.argument("to", BlockPosArgument.blockPos())
                                                 .executes(ZoneCommands::checkout)))))
-                .then(Commands.literal("list").executes(ZoneCommands::list))
-                .then(Commands.literal("info").then(name().executes(ctx -> withZone(ctx, ZoneCommands::info))))
-                .then(Commands.literal("lint").then(name().executes(ctx -> withZone(ctx, (c, z) -> lint(c, z, false)))))
-                .then(Commands.literal("diff").then(name().executes(ctx -> withZone(ctx, (c, z) -> lint(c, z, true)))))
-                .then(Commands.literal("abandon").then(name().executes(ctx -> withZone(ctx, ZoneCommands::abandon))));
+                .then(Commands.literal("list").requires(perm(MirrorPermissions.ZONE_VIEW)).executes(ZoneCommands::list))
+                .then(Commands.literal("info").requires(perm(MirrorPermissions.ZONE_VIEW))
+                        .then(name().executes(ctx -> withZone(ctx, false, ZoneCommands::info))))
+                .then(Commands.literal("lint").requires(perm(MirrorPermissions.ZONE_VIEW))
+                        .then(name().executes(ctx -> withZone(ctx, true, (c, z) -> lint(c, z, false)))))
+                .then(Commands.literal("diff").requires(perm(MirrorPermissions.ZONE_VIEW))
+                        .then(name().executes(ctx -> withZone(ctx, true, (c, z) -> lint(c, z, true)))))
+                .then(Commands.literal("submit").requires(perm(MirrorPermissions.ZONE_SUBMIT))
+                        .then(name().executes(ctx -> withZone(ctx, true, (c, z) -> submit(c, z, false)))
+                                .then(Commands.literal("force").executes(ctx -> withZone(ctx, true, (c, z) -> submit(c, z, true))))))
+                .then(Commands.literal("abandon").requires(perm(MirrorPermissions.ZONE_ABANDON))
+                        .then(name().executes(ctx -> withZone(ctx, true, ZoneCommands::abandon))));
     }
 
-    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> name() {
+    private static java.util.function.Predicate<CommandSourceStack> perm(String node) {
+        return MirrorPermissions.require(node, 2);
+    }
+
+    private static RequiredArgumentBuilder<CommandSourceStack, String> name() {
         return Commands.argument("name", StringArgumentType.word()).suggests(ZONES);
     }
 
@@ -54,7 +70,8 @@ public final class ZoneCommands {
         int run(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone zone) throws Exception;
     }
 
-    private static int withZone(CommandContext<CommandSourceStack> ctx, ZoneAction action) {
+    /** {@code ownerOnly}: the zone's owner, the console, or holders of zone.others. */
+    private static int withZone(CommandContext<CommandSourceStack> ctx, boolean ownerOnly, ZoneAction action) {
         ZoneManager m = ZoneManager.get();
         if (m == null) {
             return fail(ctx, "zones are not available until the server has started");
@@ -64,11 +81,20 @@ public final class ZoneCommands {
         if (z == null) {
             return fail(ctx, "no checked-out zone " + name);
         }
+        if (ownerOnly && !mayTouch(ctx.getSource(), z)) {
+            return fail(ctx, "zone " + name + " belongs to " + z.owner + " (needs " + MirrorPermissions.ZONE_OTHERS + ")");
+        }
         try {
             return action.run(ctx, z);
         } catch (Exception e) {
             return fail(ctx, e.toString());
         }
+    }
+
+    private static boolean mayTouch(CommandSourceStack src, ZoneManager.Zone z) {
+        ServerPlayer p = src.getPlayer();
+        return p == null || z.ownerUuid == null || z.ownerUuid.equals(p.getStringUUID())
+                || MirrorPermissions.check(src, MirrorPermissions.ZONE_OTHERS, 3);
     }
 
     private static int fail(CommandContext<CommandSourceStack> ctx, String msg) {
@@ -81,20 +107,40 @@ public final class ZoneCommands {
     }
 
     private static int checkout(CommandContext<CommandSourceStack> ctx) {
+        BlockPos a = BlockPosArgument.getBlockPos(ctx, "from");
+        BlockPos b = BlockPosArgument.getBlockPos(ctx, "to");
+        return checkout(ctx, BoundingBox.fromCorners(a, b), "");
+    }
+
+    /** checkout <name> without corners: the player's WorldEdit selection. */
+    private static int checkoutSelection(CommandContext<CommandSourceStack> ctx) {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("worldedit")) {
+            return fail(ctx, "WorldEdit is not installed on this server: give the two corners, "
+                    + "zone checkout <name> <from> <to>");
+        }
+        WorldEditSelection.Result sel = WorldEditSelection.of(ctx.getSource().getTextName());
+        if (sel.error() != null) {
+            return fail(ctx, sel.error());
+        }
+        return checkout(ctx, sel.box(), sel.note());
+    }
+
+    private static int checkout(CommandContext<CommandSourceStack> ctx, BoundingBox box, String note) {
         ZoneManager m = ZoneManager.get();
         if (m == null) {
             return fail(ctx, "zones are not available until the server has started");
         }
-        BlockPos a = BlockPosArgument.getBlockPos(ctx, "from");
-        BlockPos b = BlockPosArgument.getBlockPos(ctx, "to");
-        BoundingBox box = BoundingBox.fromCorners(a, b);
         CommandSourceStack src = ctx.getSource();
-        String why = m.checkout(StringArgumentType.getString(ctx, "name"), box, src.getTextName(), msg -> say(src, msg));
+        ServerPlayer p = src.getPlayer();
+        String name = StringArgumentType.getString(ctx, "name");
+        String why = m.checkout(name, box, src.getTextName(), p == null ? null : p.getStringUUID(), msg -> say(src, msg));
         if (why != null) {
             return fail(ctx, why);
         }
-        say(src, "Checking out " + StringArgumentType.getString(ctx, "name") + " (" + ZoneSnapshot.volume(box)
-                + " blocks): refreshing it from the origin first...");
+        say(src, "Checking out " + name + " [" + box.minX() + " " + box.minY() + " " + box.minZ() + " .. " + box.maxX()
+                + " " + box.maxY() + " " + box.maxZ() + "] (" + ZoneSnapshot.volume(box) + " blocks)" + note
+                + (m.locksOrigin() ? ": locking it at the origin and refreshing it from there first..."
+                : ": refreshing it from the origin first..."));
         return 1;
     }
 
@@ -106,7 +152,8 @@ public final class ZoneCommands {
         }
         StringBuilder sb = new StringBuilder(m.zones().size() + " zone(s):");
         for (ZoneManager.Zone z : m.zones()) {
-            sb.append("\n  ").append(z).append(" by ").append(z.owner).append(" since ").append(z.checkedOut);
+            sb.append("\n  ").append(z).append(" by ").append(z.owner).append(" since ").append(z.checkedOut)
+                    .append(z.locked ? ", locked at the origin" : ", NOT locked at the origin");
         }
         say(ctx.getSource(), sb.toString());
         return m.zones().size();
@@ -114,7 +161,10 @@ public final class ZoneCommands {
 
     private static int info(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone z) {
         say(ctx.getSource(), z + " by " + z.owner + ", checked out " + z.checkedOut
-                + (z.refreshed ? "" : " (not refreshed from the origin)") + "; " + ZoneSnapshot.volume(z.box()) + " blocks");
+                + (z.refreshed ? "" : " (not refreshed from the origin)")
+                + (z.locked ? ", locked at the origin" : ", NOT locked at the origin")
+                + (z.lastJob != null ? ", last submit: origin job " + z.lastJob : "")
+                + "; " + ZoneSnapshot.volume(z.box()) + " blocks");
         return 1;
     }
 
@@ -156,10 +206,20 @@ public final class ZoneCommands {
         });
     }
 
+    private static int submit(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone z, boolean force) throws Exception {
+        CommandSourceStack src = ctx.getSource();
+        String why = ZoneManager.get().submit(z, force, msg -> say(src, msg));
+        if (why != null) {
+            return fail(ctx, why);
+        }
+        say(src, "Sending " + z.name + " to the origin" + (force ? " (force: overwriting origin changes)" : "") + "...");
+        return 1;
+    }
+
     private static int abandon(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone z) throws Exception {
         CommandSourceStack src = ctx.getSource();
         String now = ZoneManager.get().abandon(z, msg -> say(src, msg));
-        say(src, now != null ? now : "Abandoning " + z.name + ": restoring the origin's content...");
+        say(src, now != null ? now : "Abandoning " + z.name + ": unlocking it at the origin and restoring its content...");
         return 1;
     }
 }

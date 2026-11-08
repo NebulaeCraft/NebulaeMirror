@@ -110,6 +110,7 @@ public class NebulaeMirror implements ModInitializer {
         ImportHook.register();
         SyncService.register();
         ZoneManager.register();
+        net.kuina.nebulaemirror.writeback.EditGuard.register();
         MirrorCommands.register();
         LOG.info("Registered {} mirror blocks {} in {} ms", BLOCKS.size(), archetypes,
                 System.currentTimeMillis() - start);

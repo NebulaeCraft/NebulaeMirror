@@ -1,28 +1,53 @@
 # Write-back (mirror 1.21 → origin 1.12, P3)
 
-Until step 3, a zone is written back by hand: on the mirror run `/nebulaemirror zone diff <zone>`, copy `world/nebulaemirror/zones/<zone>/patch.nbt` into the origin's `world/nebulaemirror-bridge/inbox/`, run `/mirrorbridge apply patch.nbt` on the origin, then `/nebulaemirror zone abandon <zone>` on the mirror (it re-syncs the zone from the origin, which now has the edits).
+Edits made in the mirror go back to the origin one **zone** at a time. A zone is a box that is checked out: from checkout until it is submitted or abandoned, the mirror is authoritative there and the incremental sync leaves it alone. At the origin the bridge mod ([bridge.md](bridge.md)) locks the same box.
 
-Edits made in the mirror go back to the origin one **zone** at a time. A zone is a box that is checked out: from checkout until it is submitted or abandoned, the mirror is authoritative there and the incremental sync leaves it alone.
+## Workflow
 
-P3 is built in three steps:
+1. Select the area with WorldEdit on the mirror (`//wand`, `//pos1` / `//pos2`, …), then `/nebulaemirror zone checkout <name>`. Alternatively give the corners: `/nebulaemirror zone checkout <name> <from> <to>`. The bridge locks the box at the origin; the mirror pulls, refreshes the box from the origin and snapshots it.
+2. Build in the mirror (WorldEdit, Axiom, by hand).
+3. `/nebulaemirror zone lint <name>` until there are no errors.
+4. `/nebulaemirror zone submit <name>`:
+   1. lint again;
+   2. send the changed blocks to the bridge;
+   3. the bridge checks, writes its undo file, applies, reads back, unlocks and saves;
+   4. the mirror pulls, refreshes the zone from the origin and compares every sent block with what came back. It prints "all N blocks came back from the origin as sent", or the differences.
 
-| Step | Contents | Status |
+   The zone is then closed (files kept in `zones/_closed/<name>-<time>/`).
+
+   If blocks were changed at the origin since the checkout, the submit is refused with their coordinates. The zone stays checked out and locked; `submit <name> force` overwrites them.
+5. Or `/nebulaemirror zone abandon <name>`: unlock at the origin, drop the mirror's edits (refreshed from the origin).
+
+Undoing a submit at the origin: `/mirrorbridge rollback <job>` (the job id is printed by `submit`).
+
+Configuration (mirror, `config/nebulaemirror-sync.json`):
+
+```json
+"bridge": {"url": "http://127.0.0.1:21201", "token": "<token from the origin's config/mirrorbridge.cfg>"}
+```
+
+Without `bridge`, checkout does not lock the origin (it says so) and `submit` is unavailable. The patch can still be written with `zone diff` and applied with `/mirrorbridge apply` by hand.
+
+## Commands and permission nodes
+
+Nodes are checked through fabric-permissions-api, so LuckPerms-Fabric manages them. Without a permissions mod each falls back to the operator level shown.
+
+| Command | Node (fallback level) | Action |
 |---|---|---|
-| 1 | Reverse mapping (1.21 → 1.12), TileEntity downgrade, zones (checkout / lint / diff / abandon), patch file | **done** (this document) |
-| 2 | Bridge mod `legacy/bridge/` (Forge 1.12): apply a patch in ticks with an undo file, `/mirrorbridge rollback`, see [bridge.md](bridge.md) | **done** |
-| 3 | Zone lock at the origin, HTTP between mirror and bridge, `zone submit`, round-trip check after submit | to do |
+| `zone checkout <name>` | `nebulaemirror.zone.checkout` (2) | Your current WorldEdit selection in the overworld. A non-cuboid selection (sphere, polygon, …) uses its bounding box, and says so. Needs WorldEdit for Fabric on the mirror; uses only WorldEdit's core API (tested with 7.3.8). From the console it uses the console's WorldEdit session (`//world world_minecraft:overworld`, `//pos1 x,y,z`, `//pos2 x,y,z`) |
+| `zone checkout <name> <from> <to>` | `nebulaemirror.zone.checkout` (2) | Same with explicit corners (`~` works for players). Names are 1–32 characters of `a-z 0-9 _ -`; at most 256³ blocks; zones may not overlap |
+| `zone list` / `info <name>` | `nebulaemirror.zone.view` (2) | Checked-out zones, lock state, last submit |
+| `zone lint <name>` / `diff <name>` | `nebulaemirror.zone.view` (2) | Compare with the snapshot and check; `diff` also writes `patch.nbt`. Full report in `lint.json` |
+| `zone submit <name> [force]` | `nebulaemirror.zone.submit` (2) | See the workflow |
+| `zone abandon <name>` | `nebulaemirror.zone.abandon` (2) | See the workflow |
+| — | `nebulaemirror.zone.others` (3) | lint / diff / submit / abandon zones checked out by someone else, and build inside them (the console always may) |
+| — | `nebulaemirror.edit.anywhere` (nobody) | Change blocks outside one's checked-out zones (they are re-applied from the origin at the next sync anyway) |
+| `sync status` | `nebulaemirror.sync.status` (2) | |
+| `sync now` / `apply` / `refresh` / `cancel` | `nebulaemirror.sync.run` (2) | |
+| `sync baseline` / `reload` | `nebulaemirror.sync.admin` (3) | |
+| `stats` | `nebulaemirror.stats` (2) | |
 
-## Commands (permission level 2)
-
-| Command | Action |
-|---|---|
-| `/nebulaemirror zone checkout <name> <from> <to>` | Refresh the box from the origin (pull first if a `pullCommand` is configured), snapshot it, and exclude it from the sync. Names are 1–32 characters of `a-z 0-9 _ -`; at most 256³ blocks; zones may not overlap |
-| `/nebulaemirror zone list` / `info <name>` | Checked-out zones |
-| `/nebulaemirror zone lint <name>` | Compare the zone with its snapshot and check everything that would be written back. Prints errors/warnings with sample coordinates; full report in `lint.json` |
-| `/nebulaemirror zone diff <name>` | Lint, and when there are no errors write `patch.nbt` (what step 3's `submit` will send) |
-| `/nebulaemirror zone abandon <name>` | Drop the zone and refresh it from the origin, discarding the mirror's edits |
-
-Files: `world/nebulaemirror/zones/<name>/` holds `zone.json`, `baseline.nbt` (snapshot), `lint.json` and `patch.nbt`. Zones survive restarts. While sync is off (development), checkout takes the mirror's current content as the origin's and says so.
+Files: `world/nebulaemirror/zones/<name>/` holds `zone.json`, `baseline.nbt` (snapshot), `lint.json`, `patch.nbt`, and after a submit `verify.json`. Zones survive restarts. While sync is off (development), checkout takes the mirror's current content as the origin's and says so.
 
 ## What is written back
 
@@ -107,9 +132,29 @@ Names, not numeric ids: the bridge resolves them against the origin's live regis
 - With the zone checked out, an origin change inside it was not synced and one outside it was; `abandon` restored the zone (the held-back change arrived, the mirror's edits were gone).
 - Zones survive a restart, overlapping checkouts are refused, and a manual `sync refresh` also skips checked-out zones.
 
-## Not done yet (steps 2 and 3)
+## Verification of the full loop
 
-- Locking the zone at the origin. Until then, edits made at the origin inside a checked-out zone would be overwritten by a submit; the patch's `Expect` lets the bridge detect and refuse that.
-- Sending the patch over HTTP (step 3; applying it with undo and rollback is done, [bridge.md](bridge.md)), and the round-trip check after submit.
-- Permission nodes for the mirror's zone commands (LuckPerms-Fabric, via fabric-permissions-api) come with `submit` in step 3.
-- Selection from WorldEdit/Axiom: `checkout` takes coordinates for now.
+See [bridge.md](bridge.md#verification-mirror--bridge-end-to-end-2026-11-08):
+- checkout locked the zone at the origin;
+- a submit was refused for conflicts and then forced;
+- 299 blocks were applied, read back and round-tripped exactly, including chest items, sign text and bed colour;
+- abandon unlocked the zone;
+- an unreachable bridge failed cleanly.
+
+## Building outside zones
+
+The mirror follows the origin everywhere outside checked-out zones:
+
+- **Refused up front**: players cannot break or place blocks there, use items on blocks, or use buckets; they see a message telling them to check out a zone. WorldEdit edits by players skip blocks outside their zones and say so once. A player may build inside zones they checked out, or inside any zone with `nebulaemirror.zone.others`. Turn this off with `"protectOutsideZones": false` in config/nebulaemirror-sync.json.
+- **Reverted at the next sync**: whatever still changes there. That includes commands such as `/setblock` and `/fill`, the console's WorldEdit, Axiom (it has no server-side hook to refuse it, but its writes mark chunks the usual way), opening doors, water, fire and growing plants. See [sync.md](sync.md).
+
+Not yet tried with a real player: the in-game refusal messages and WorldEdit for players. The recording and re-applying was tested (`/setblock`, `/fill`, console `//set`, restart, `sync apply`).
+
+## Troubleshooting
+
+- **A submit's round trip reports "N of N blocks differ", and the zone looks as before in the mirror** (while the origin shows the change): the pull did not copy the changed region file, so the mirror refreshed the zone from a stale copy. On Windows this is what robocopy does with region files the running origin keeps open; use `"copier": "header"` in pull.json (see [sync.md](sync.md#windows)). The origin is not affected. The next pull with the header copier, or any pull after an origin restart, brings the change into the mirror.
+
+## Not done yet
+
+- Axiom selections are not read (Axiom has no server-side selection API); select with WorldEdit, or give the corners.
+- Not tested yet with real players and FAWE at the origin: the in-game lock and the FAWE mask (see [bridge.md](bridge.md)).

@@ -1,9 +1,8 @@
 {
-  "rcon": {"host": "192.168.1.10", "port": 25575, "passwordFile": "rcon-password.txt"},
-  "copier": "robocopy",
-  "remote": "\\\\ORIGIN\\mcworld",
+  "rcon": {"host": "127.0.0.1", "port": 25575, "passwordFile": "rcon-password.txt"},
+  "copier": "header",
+  "remote": "D:\\mc\\world",
   "dest": "D:\\mirror\\world12",
-  "robocopyThreads": 8,
   "rconTimeoutSeconds": 300,
   "copyTimeoutSeconds": 3600
 }

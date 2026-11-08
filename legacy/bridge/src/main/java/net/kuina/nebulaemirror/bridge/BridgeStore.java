@@ -99,7 +99,8 @@ final class BridgeStore {
     void markInterrupted() {
         for (File d : jobDirs()) {
             JsonObject o = readReport(d);
-            if (o != null && ("check".equals(o.get("phase").getAsString()) || "apply".equals(o.get("phase").getAsString()))) {
+            if (o != null && ("check".equals(o.get("phase").getAsString()) || "apply".equals(o.get("phase").getAsString())
+                    || "verify".equals(o.get("phase").getAsString()))) {
                 o.addProperty("phase", "interrupted");
                 File f = new File(d, "job.json");
                 try (Writer w = new OutputStreamWriter(Files.newOutputStream(f.toPath()), StandardCharsets.UTF_8)) {

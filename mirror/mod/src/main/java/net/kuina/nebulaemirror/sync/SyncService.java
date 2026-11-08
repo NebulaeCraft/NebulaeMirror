@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.kuina.nebulaemirror.NebulaeMirror;
+import net.kuina.nebulaemirror.writeback.MirrorEdits;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -49,6 +51,7 @@ public final class SyncService {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SyncService s = new SyncService(server);
             s.loadConfig();
+            MirrorEdits.start(new SyncState(server.getWorldPath(LevelResource.ROOT)).root());
             instance = s;
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -57,6 +60,7 @@ public final class SyncService {
             if (s != null) {
                 s.shutdown();
             }
+            MirrorEdits.stop();
         });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             SyncService s = instance;
@@ -148,7 +152,10 @@ public final class SyncService {
             return "no sync baseline in " + state.root() + ": do the full import from the sync source, or run "
                     + "\"/nebulaemirror sync baseline\" if this world was imported from exactly the current source";
         }
-        SyncRun run = new SyncRun(mode, server, c, force, pullFirst);
+        MirrorEdits edits = MirrorEdits.get();
+        // Chunks edited in the mirror are re-applied from the origin (a refresh only takes those in its range).
+        Map<Long, Long> edited = edits == null || mode == SyncRun.Mode.BASELINE ? Map.of() : edits.snapshot(force);
+        SyncRun run = new SyncRun(mode, server, c, force, pullFirst, edited);
         current = run;
         coordinator.execute(() -> {
             Outcome outcome;
@@ -158,6 +165,9 @@ public final class SyncService {
                 lastError = null;
                 writeReport(state, report);
                 boolean ok = !run.cancelled && report.getAsJsonObject("converter").get("failedChunks").getAsLong() == 0;
+                if (ok && edits != null && !edited.isEmpty()) {
+                    edits.forget(edited);
+                }
                 outcome = new Outcome(ok, summary(report), report);
                 NebulaeMirror.LOG.info("Sync: {}", outcome.message());
             } catch (Throwable t) {
@@ -198,8 +208,20 @@ public final class SyncService {
                 + " changed (" + r.get("chunksWrittenToDisk").getAsLong() + " written to disk, "
                 + r.get("chunksPatchedLive").getAsLong() + " patched live: " + r.get("liveBlocksChanged").getAsLong()
                 + " blocks, " + r.get("liveBlockEntitiesChanged").getAsLong() + " block entities), "
-                + r.get("chunksExcluded").getAsLong() + " excluded, " + conv.get("unknownBlocks").getAsLong()
+                + r.get("chunksExcluded").getAsLong() + " excluded, "
+                + mirrorEdits(r)
+                + conv.get("unknownBlocks").getAsLong()
                 + " unknown blocks, " + conv.get("failedChunks").getAsLong() + " errors";
+    }
+
+    private static String mirrorEdits(JsonObject r) {
+        long edited = r.has("mirrorEditedChunks") ? r.get("mirrorEditedChunks").getAsLong() : 0;
+        if (edited == 0) {
+            return "";
+        }
+        long restored = r.get("mirrorEditedChunksRestored").getAsLong();
+        return restored + " chunk(s) edited in the mirror re-applied from the origin"
+                + (restored < edited ? " (" + (edited - restored) + " not in the origin copy, left as they are)" : "") + ", ";
     }
 
     private void writeReport(SyncState state, JsonObject report) {
@@ -238,6 +260,11 @@ public final class SyncService {
             if (!c.exclude.isEmpty()) {
                 sb.append(", ").append(c.exclude.size()).append(" excluded area(s)");
             }
+        }
+        MirrorEdits edits = MirrorEdits.get();
+        if (edits != null && edits.size() > 0) {
+            sb.append("\n").append(edits.size()).append(" chunk(s) edited in the mirror are re-applied from the origin "
+                    + "at the next sync");
         }
         SyncRun r = current;
         if (r != null) {

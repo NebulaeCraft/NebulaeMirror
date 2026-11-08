@@ -11,7 +11,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle'
 
 // Keep in sync with MirrorBridge.VERSION
-version = '0.1.0'
+version = '0.2.0'
 group = 'net.kuina.nebulaemirror'
 archivesBaseName = 'MirrorBridge-1.12.2'
 
@@ -39,8 +39,14 @@ minecraft {
     }
 }
 
+repositories {
+    // WorldEdit 6 API for the lock mask (provided at runtime by WorldEdit-Forge 6.1.10 / FAWE on the origin).
+    maven { url = 'https://maven.enginehub.org/repo/' }
+}
+
 dependencies {
     minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2864'
+    compileOnly('com.sk89q.worldedit:worldedit-core:6.1.4-SNAPSHOT') { transitive = false }
 }
 
 processResources {

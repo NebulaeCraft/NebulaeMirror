@@ -6,6 +6,7 @@ import struct
 import sys
 import tempfile
 import threading
+import time
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -173,6 +174,11 @@ class PullTest(unittest.TestCase):
         self.assertIn(' bad', text, 'undecodable output is replaced, not fatal')
         self.assertNotIn('Warning', text)
 
+    def test_rcon_null_copies_without_commands(self):
+        self.assertEqual(0, pull.pull(self.config(rcon=None), self.dir))
+        self.assertEqual([], self.rcon.commands)
+        self.assertTrue(os.path.isfile(os.path.join(self.dir, 'copy', 'region', 'r.0.0.mca')))
+
     def test_unknown_copier_is_rejected_before_save_off(self):
         with self.assertRaises(SystemExit):
             pull.pull(self.config(copier='scp'), self.dir)
@@ -200,6 +206,109 @@ class PullTest(unittest.TestCase):
         out, _ = proc.communicate(timeout=10)
         self.assertNotEqual(0, proc.returncode, out)
         self.assertEqual(['save-off', 'save-all flush', 'save-on'], self.rcon.commands, out)
+
+
+class HeaderCopierTest(unittest.TestCase):
+    """The "header" copier: decides by the region header (content), not by file size or time."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.src = os.path.join(self.tmp.name, 'origin')
+        self.dst = os.path.join(self.tmp.name, 'copy')
+        os.makedirs(os.path.join(self.src, 'region'))
+        with open(os.path.join(self.src, 'level.dat'), 'wb') as f:
+            f.write(b'L1')
+        self.old = time.time() - 3600
+        for name in ('r.0.0.mca', 'r.-1.2.mca'):
+            self.region(name, saved=int(self.old), payload=b'A' * 5000)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def region(self, name, saved, payload, keep_stat=False):
+        """A region file whose chunk 0 was saved at {saved}; keep_stat restores size and mtime afterwards
+        (what Windows shows for a file the running server keeps open)."""
+        path = os.path.join(self.src, 'region', name)
+        before = os.stat(path) if keep_stat else None
+        head = bytearray(8192)
+        struct.pack_into('>i', head, 0, (2 << 8) | 2)
+        struct.pack_into('>i', head, 4096, saved)
+        with open(path, 'wb') as f:
+            f.write(bytes(head) + payload)
+        if before:
+            self.assertEqual(before.st_size, os.path.getsize(path))
+            os.utime(path, (before.st_atime, before.st_mtime))
+        return path
+
+    def run_copy(self, dry=False):
+        self.lines = []
+        orig = pull.log
+        pull.log = self.lines.append
+        try:
+            return pull.header_copy(self.src, self.dst, dry, time.time() + 60)
+        finally:
+            pull.log = orig
+
+    def copied(self):
+        return [l.strip()[len('copy:'):].strip() for l in self.lines if l.startswith('copy:   ')]
+
+    def read(self, *parts):
+        with open(os.path.join(self.dst, *parts), 'rb') as f:
+            return f.read()
+
+    def test_first_copy_then_nothing(self):
+        self.assertTrue(self.run_copy())
+        self.assertEqual(['r.-1.2.mca', 'r.0.0.mca'], self.copied())
+        self.assertEqual(b'L1', self.read('level.dat'))
+        self.assertTrue(self.run_copy())
+        self.assertEqual([], self.copied())
+
+    def test_changed_header_is_copied_even_with_unchanged_size_and_time(self):
+        self.assertTrue(self.run_copy())
+        self.region('r.0.0.mca', saved=int(self.old) + 60, payload=b'B' * 5000, keep_stat=True)
+        self.assertTrue(self.run_copy())
+        self.assertEqual(['r.0.0.mca'], self.copied())
+        self.assertTrue(self.read('region', 'r.0.0.mca').endswith(b'B' * 5000))
+
+    def test_save_in_the_same_second_as_the_copy_is_copied_again(self):
+        self.assertTrue(self.run_copy())
+        # header unchanged, but a chunk saved "now" (right after our copy) could have new data in place
+        path = self.region('r.0.0.mca', saved=int(time.time()), payload=b'A' * 5000)
+        os.utime(os.path.join(self.dst, 'region', 'r.0.0.mca'))
+        with open(os.path.join(self.dst, 'region', 'r.0.0.mca'), 'r+b') as f:
+            f.write(open(path, 'rb').read(8192))  # make the copy's header identical
+        self.assertTrue(self.run_copy())
+        self.assertEqual(['r.0.0.mca'], self.copied())
+
+    def test_level_dat_always_and_removed_regions(self):
+        self.assertTrue(self.run_copy())
+        with open(os.path.join(self.src, 'level.dat'), 'wb') as f:
+            f.write(b'L2')
+        os.remove(os.path.join(self.src, 'region', 'r.-1.2.mca'))
+        self.assertTrue(self.run_copy())
+        self.assertEqual(b'L2', self.read('level.dat'))
+        self.assertFalse(os.path.exists(os.path.join(self.dst, 'region', 'r.-1.2.mca')))
+        self.assertFalse(any(n.endswith('.pulltmp') for n in os.listdir(os.path.join(self.dst, 'region'))))
+
+    def test_dry_run_writes_nothing(self):
+        self.assertTrue(self.run_copy(dry=True))
+        self.assertEqual(['r.-1.2.mca', 'r.0.0.mca'], self.copied())
+        self.assertFalse(os.path.exists(os.path.join(self.dst, 'level.dat')))
+        self.assertEqual([], os.listdir(os.path.join(self.dst, 'region')))
+
+    def test_through_pull_with_rcon(self):
+        rcon = FakeRcon()
+        rcon.start()
+        try:
+            with open(os.path.join(self.tmp.name, 'pw'), 'w') as f:
+                f.write('secret')
+            cfg = {'rcon': {'host': '127.0.0.1', 'port': rcon.port, 'passwordFile': 'pw'},
+                   'copier': 'header', 'remote': self.src, 'dest': self.dst}
+            self.assertEqual(0, pull.pull(cfg, self.tmp.name))
+            self.assertEqual(['save-off', 'save-all flush', 'save-on'], rcon.commands)
+            self.assertEqual(b'L1', self.read('level.dat'))
+        finally:
+            rcon.close()
 
 
 if __name__ == '__main__':

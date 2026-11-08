@@ -3,6 +3,7 @@ package net.kuina.nebulaemirror.sync;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import net.kuina.nebulaemirror.MirrorPermissions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -17,11 +18,11 @@ public final class SyncCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> tree() {
         return Commands.literal("sync")
-                .then(Commands.literal("status").executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).status())))
-                .then(Commands.literal("now").executes(ctx -> start(ctx, SyncRun.Mode.PULL_AND_APPLY, null)))
-                .then(Commands.literal("apply").executes(ctx -> start(ctx, SyncRun.Mode.APPLY, null)))
-                .then(Commands.literal("baseline").executes(ctx -> start(ctx, SyncRun.Mode.BASELINE, null)))
-                .then(Commands.literal("refresh")
+                .then(Commands.literal("status").requires(MirrorPermissions.require(MirrorPermissions.SYNC_STATUS, 2)).executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).status())))
+                .then(Commands.literal("now").requires(MirrorPermissions.require(MirrorPermissions.SYNC_RUN, 2)).executes(ctx -> start(ctx, SyncRun.Mode.PULL_AND_APPLY, null)))
+                .then(Commands.literal("apply").requires(MirrorPermissions.require(MirrorPermissions.SYNC_RUN, 2)).executes(ctx -> start(ctx, SyncRun.Mode.APPLY, null)))
+                .then(Commands.literal("baseline").requires(MirrorPermissions.require(MirrorPermissions.SYNC_ADMIN, 3)).executes(ctx -> start(ctx, SyncRun.Mode.BASELINE, null)))
+                .then(Commands.literal("refresh").requires(MirrorPermissions.require(MirrorPermissions.SYNC_RUN, 2))
                         .then(Commands.argument("x1", IntegerArgumentType.integer())
                                 .then(Commands.argument("z1", IntegerArgumentType.integer())
                                         .then(Commands.argument("x2", IntegerArgumentType.integer())
@@ -31,8 +32,8 @@ public final class SyncCommands {
                                                                 IntegerArgumentType.getInteger(ctx, "z1"),
                                                                 IntegerArgumentType.getInteger(ctx, "x2"),
                                                                 IntegerArgumentType.getInteger(ctx, "z2")})))))))
-                .then(Commands.literal("cancel").executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).cancel())))
-                .then(Commands.literal("reload").executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).loadConfig())));
+                .then(Commands.literal("cancel").requires(MirrorPermissions.require(MirrorPermissions.SYNC_RUN, 2)).executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).cancel())))
+                .then(Commands.literal("reload").requires(MirrorPermissions.require(MirrorPermissions.SYNC_ADMIN, 3)).executes(ctx -> reply(ctx, service(ctx) == null ? null : service(ctx).loadConfig())));
     }
 
     private static SyncService service(CommandContext<CommandSourceStack> ctx) {

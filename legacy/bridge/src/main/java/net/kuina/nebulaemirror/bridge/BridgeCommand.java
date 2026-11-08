@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * /mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | cancel
+ * /mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | locks | unlock <zone> | cancel
  * <p>
  * apply: a patch from the inbox. rollback: restores what a job replaced (its undo file). Both refuse when
  * blocks changed at the origin since (Expect mismatch) unless "force" is given; unknown block names always
@@ -37,7 +37,7 @@ public final class BridgeCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | cancel";
+        return "/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | locks | unlock <zone> | cancel";
     }
 
     @Override
@@ -48,7 +48,8 @@ public final class BridgeCommand extends CommandBase {
     @Override
     public boolean checkPermission(MinecraftServer server, ICommandSender sender) {
         return !(sender instanceof EntityPlayer) || allowed(sender, MirrorBridge.PERM_STATUS)
-                || allowed(sender, MirrorBridge.PERM_APPLY) || allowed(sender, MirrorBridge.PERM_ROLLBACK);
+                || allowed(sender, MirrorBridge.PERM_APPLY) || allowed(sender, MirrorBridge.PERM_ROLLBACK)
+                || allowed(sender, MirrorBridge.PERM_LOCK);
     }
 
     private static boolean allowed(ICommandSender sender, String node) {
@@ -122,6 +123,22 @@ public final class BridgeCommand extends CommandBase {
                 say(sender, sb.toString());
                 break;
             }
+            case "locks": {
+                need(sender, MirrorBridge.PERM_STATUS, args, 1);
+                List<ZoneLocks.Lock> all = MirrorBridge.locks.all();
+                StringBuilder sb = new StringBuilder(all.isEmpty() ? "No zones locked" : all.size() + " locked zone(s):");
+                for (ZoneLocks.Lock l : all) {
+                    sb.append("\n  ").append(l);
+                }
+                say(sender, sb.toString());
+                break;
+            }
+            case "unlock": {
+                need(sender, MirrorBridge.PERM_LOCK, args, 2);
+                say(sender, MirrorBridge.locks.unlock(args[1]) ? "Zone " + args[1] + " unlocked (the mirror still has it "
+                        + "checked out: abandon or submit it there)" : "Zone " + args[1] + " is not locked");
+                break;
+            }
             case "inbox": {
                 need(sender, MirrorBridge.PERM_STATUS, args, 1);
                 String[] names = store.inbox.list();
@@ -139,7 +156,7 @@ public final class BridgeCommand extends CommandBase {
             throw new CommandException("missing permission " + node);
         }
         if (args.length < minArgs) {
-            throw new WrongUsageException("/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | cancel");
+            throw new WrongUsageException("/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | locks | unlock <zone> | cancel");
         }
     }
 
@@ -165,7 +182,12 @@ public final class BridgeCommand extends CommandBase {
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos pos) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "apply", "rollback", "status", "jobs", "inbox", "cancel");
+            return getListOfStringsMatchingLastWord(args, "apply", "rollback", "status", "jobs", "inbox", "locks", "unlock", "cancel");
+        }
+        if (args.length == 2 && args[0].equals("unlock")) {
+            List<String> zones = new ArrayList<>();
+            MirrorBridge.locks.all().forEach(l -> zones.add(l.zone));
+            return getListOfStringsMatchingLastWord(args, zones);
         }
         if (args.length == 2 && args[0].equals("apply")) {
             String[] names = MirrorBridge.store.inbox.list();

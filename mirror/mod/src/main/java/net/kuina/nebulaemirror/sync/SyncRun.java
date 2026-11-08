@@ -70,6 +70,8 @@ final class SyncRun {
     private final SyncGuard guard;
     /** REFRESH: inclusive chunk range [x1, z1, x2, z2] converted and applied regardless of the recorded state. */
     private final int[] force;
+    /** Chunks changed in the mirror itself (MirrorEdits snapshot): re-applied from the origin like forced ones. */
+    final Map<Long, Long> edits;
     final long started = System.currentTimeMillis();
 
     volatile String phase = "starting";
@@ -91,6 +93,7 @@ final class SyncRun {
     final AtomicLong chunksPatchedNoChange = new AtomicLong();
     final AtomicLong chunksExcluded = new AtomicLong();
     final AtomicLong chunksMissingInSource = new AtomicLong();
+    final AtomicLong chunksMirrorEdited = new AtomicLong();
     final AtomicLong blocks = new AtomicLong();
     final AtomicLong blockEntities = new AtomicLong();
     final AtomicLong shapes = new AtomicLong();
@@ -104,7 +107,8 @@ final class SyncRun {
     private final AtomicInteger outstanding = new AtomicInteger();
     private final Semaphore permits;
 
-    SyncRun(Mode mode, MinecraftServer server, SyncConfig config, int[] force, boolean pullFirst) {
+    SyncRun(Mode mode, MinecraftServer server, SyncConfig config, int[] force, boolean pullFirst, Map<Long, Long> edits) {
+        this.edits = edits == null ? Map.of() : edits;
         this.mode = mode;
         this.pullFirst = pullFirst;
         this.server = server;
@@ -319,8 +323,9 @@ final class SyncRun {
     }
 
     private boolean forced(int cx, int cz) {
-        return force != null && cx >= Math.min(force[0], force[2]) && cx <= Math.max(force[0], force[2])
-                && cz >= Math.min(force[1], force[3]) && cz <= Math.max(force[1], force[3]);
+        return (force != null && cx >= Math.min(force[0], force[2]) && cx <= Math.max(force[0], force[2])
+                && cz >= Math.min(force[1], force[3]) && cz <= Math.max(force[1], force[3]))
+                || edits.containsKey(ChunkPos.asLong(cx, cz));
     }
 
     private void scanRegion(Path file, ChunkConverter converter) throws IOException, InterruptedException {
@@ -363,6 +368,9 @@ final class SyncRun {
                 }
                 converted = converter.convert(e.getValue());
                 chunksConverted.incrementAndGet();
+                if (edits.containsKey(ChunkPos.asLong(cx, cz))) {
+                    chunksMirrorEdited.incrementAndGet();
+                }
                 while (!permits.tryAcquire(200, TimeUnit.MILLISECONDS)) {
                     if (cancelled) {
                         return;
@@ -379,7 +387,7 @@ final class SyncRun {
     }
 
     private boolean wanted(RegionIO.Header head, SyncState.RegionState st, int rx, int rz, int i) {
-        if (force != null) {
+        if (force != null || edits.containsKey(ChunkPos.asLong(RegionIO.chunkX(rx, i), RegionIO.chunkZ(rz, i)))) {
             return forced(RegionIO.chunkX(rx, i), RegionIO.chunkZ(rz, i));
         }
         return head.timestamps()[i] != st.timestamps[i] || st.hashes[i] == 0;
@@ -444,7 +452,10 @@ final class SyncRun {
         LevelChunk chunk = where == LiveChunkPatcher.Residency.LOADED
                 ? level.getChunkSource().getChunkNow(p.pos().x, p.pos().z)
                 : (LevelChunk) level.getChunk(p.pos().x, p.pos().z, ChunkStatus.FULL, true);
-        LiveChunkPatcher.Result r = LiveChunkPatcher.apply(level, chunk, p.chunk(), guard);
+        LiveChunkPatcher.Result[] holder = new LiveChunkPatcher.Result[1];
+        // The sync's own writes are not mirror edits.
+        net.kuina.nebulaemirror.writeback.MirrorEdits.quietly(() -> holder[0] = LiveChunkPatcher.apply(level, chunk, p.chunk(), guard));
+        LiveChunkPatcher.Result r = holder[0];
         chunksPatched.incrementAndGet();
         if (!r.changed()) {
             chunksPatchedNoChange.incrementAndGet();
@@ -485,6 +496,8 @@ final class SyncRun {
         o.addProperty("chunksPatchedLiveNoChange", chunksPatchedNoChange.get());
         o.addProperty("chunksExcluded", chunksExcluded.get());
         o.addProperty("chunksMissingInSource", chunksMissingInSource.get());
+        o.addProperty("mirrorEditedChunks", edits.size());
+        o.addProperty("mirrorEditedChunksRestored", chunksMirrorEdited.get());
         o.addProperty("liveBlocksChanged", blocks.get());
         o.addProperty("liveBlockEntitiesChanged", blockEntities.get());
         o.addProperty("liveShapeUpdates", shapes.get());
