@@ -76,26 +76,26 @@ public final class ChatSync {
             instance = null;
         }
         if (c == null) {
-            return "Chat sync stopped";
+            return "聊天同步已停止";
         }
         if (!c.chat.enabled) {
             NebulaeMirror.LOG.info("Chat sync: off");
-            return "Chat sync is off.";
+            return "聊天同步未开启。";
         }
         BridgeClient b = BridgeClient.of(c.bridge);
         if (b == null) {
             NebulaeMirror.LOG.warn("Chat sync: switched on, but there is no bridge url in config/{}", SyncConfig.FILE);
-            return "Chat sync needs bridge.url in config/" + SyncConfig.FILE + ".";
+            return "聊天同步需要在 config/" + SyncConfig.FILE + " 中设置 bridge.url。";
         }
         ChatSync s = new ChatSync(server, c.chat, b);
         if (c.chat.shownOnMirror.enabled) {
             s.poller.start();
         }
         instance = s;
-        String msg = "chat sync on: mirror -> origin " + (c.chat.shownOnOrigin.enabled ? "on" : "off")
-                + ", origin -> mirror " + (c.chat.shownOnMirror.enabled ? "on" : "off");
-        NebulaeMirror.LOG.info("Chat sync: {}", msg.substring("chat sync ".length()));
-        return "C" + msg.substring(1) + ".";
+        NebulaeMirror.LOG.info("Chat sync: on: mirror -> origin {}, origin -> mirror {}",
+                c.chat.shownOnOrigin.enabled ? "on" : "off", c.chat.shownOnMirror.enabled ? "on" : "off");
+        return "聊天同步已开启：镜像 → 原服" + (c.chat.shownOnOrigin.enabled ? "开" : "关")
+                + "，原服 → 镜像" + (c.chat.shownOnMirror.enabled ? "开" : "关") + "。";
     }
 
     private static synchronized ChatSync current() {
@@ -105,22 +105,22 @@ public final class ChatSync {
     public static String status() {
         ChatSync s = current();
         if (s == null) {
-            return "Chat sync is off";
+            return "聊天同步未开启";
         }
-        StringBuilder sb = new StringBuilder("Chat sync on. ");
-        sb.append("mirror -> origin: ");
+        StringBuilder sb = new StringBuilder("聊天同步已开启。");
+        sb.append("镜像 → 原服：");
         if (!s.config.shownOnOrigin.enabled) {
-            sb.append("off");
+            sb.append("关");
         } else {
-            sb.append(s.sent.get()).append(" sent, ").append(s.dropped.get()).append(" dropped")
-                    .append(s.sendError == null ? "" : ", last error: " + s.sendError);
+            sb.append("已发送 ").append(s.sent.get()).append(" 条，丢弃 ").append(s.dropped.get()).append(" 条")
+                    .append(s.sendError == null ? "" : "，上次错误：" + s.sendError);
         }
-        sb.append("; origin -> mirror: ");
+        sb.append("；原服 → 镜像：");
         if (!s.config.shownOnMirror.enabled) {
-            sb.append("off");
+            sb.append("关");
         } else {
-            sb.append(s.received.get()).append(" received, ")
-                    .append(s.pollError != null ? "not connected: " + s.pollError : s.polling ? "connected" : "connecting");
+            sb.append("已接收 ").append(s.received.get()).append(" 条，")
+                    .append(s.pollError != null ? "未连接：" + s.pollError : s.polling ? "已连接" : "连接中");
         }
         return sb.toString();
     }
@@ -194,8 +194,8 @@ public final class ChatSync {
                 polling = false;
                 Throwable cause = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
                 if (cause instanceof BridgeClient.BridgeException be && be.status == 404) {
-                    pollError = "the origin's bridge is older than 1.3 (formerly 0.3.0; no chat relay); update it, then sync reload";
-                    NebulaeMirror.LOG.warn("Chat sync: {}", pollError);
+                    pollError = "原服的桥接 mod 版本低于 1.3（旧版号 0.3.0），不支持聊天转发；请更新后执行 /nebulaemirror sync reload";
+                    NebulaeMirror.LOG.warn("Chat sync: the origin's bridge is older than 1.3 (no chat relay); update it, then sync reload");
                     return;
                 }
                 String why = BridgeClient.reason(e);

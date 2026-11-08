@@ -37,14 +37,14 @@ final class DumpCommand extends CommandBase {
         } catch (IllegalArgumentException e) {
             throw new CommandException(e.getMessage() + " — " + getUsage(sender));
         }
-        sender.sendMessage(new TextComponentString("[MirrorDumper] dumping, the game will freeze for a while..."));
+        sender.sendMessage(new TextComponentString("[MirrorDumper] 正在导出，游戏会卡住一段时间……"));
         try {
             Dumper dumper = new Dumper(options);
             File out = dumper.run();
-            sender.sendMessage(new TextComponentString("[MirrorDumper] done: " + dumper.summary() + " -> " + out));
+            sender.sendMessage(new TextComponentString("[MirrorDumper] 完成：" + dumper.chatSummary() + " -> " + out));
         } catch (Throwable t) {
             MirrorDumper.LOG.error("Dump failed", t);
-            sender.sendMessage(new TextComponentString("[MirrorDumper] failed: " + t + " (see log)"));
+            sender.sendMessage(new TextComponentString("[MirrorDumper] 失败：" + t + "（详见日志）"));
         }
     }
 }

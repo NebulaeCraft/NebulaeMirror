@@ -119,7 +119,7 @@ public final class ReverseTable {
                 ? be.getCompound(LegacyBlockEntity.TAG) : null;
         if (NebulaeMirror.UNKNOWN != null && s.is(NebulaeMirror.UNKNOWN)) {
             if (legacy == null || legacy.getString("Name").isEmpty()) {
-                return new Result(null, null, warnings, "unknown placeholder without its preserved 1.12 data");
+                return new Result(null, null, warnings, "未知方块占位符缺少保留的 1.12 数据");
             }
             return new Result(new LegacyBlock(legacy.getString("Name"), legacy.getByte("Meta") & 15),
                     tileEntity(legacy), warnings, null);
@@ -127,15 +127,15 @@ public final class ReverseTable {
         if (legacy != null) {
             LegacyBlock b = modded.reverse(s);
             if (b == null) {
-                return new Result(null, null, warnings, s + " has no 1.12 meta");
+                return new Result(null, null, warnings, s + " 没有对应的 1.12 meta");
             }
             String kept = legacy.getString("Name");
             if (kept.isEmpty()) {
-                warnings.add(s.getBlock().getName().getString() + " has no 1.12 TileEntity data (placed in the mirror?)");
+                warnings.add(s.getBlock().getName().getString() + " 没有 1.12 TileEntity 数据（是在镜像里放置的吗？）");
                 return new Result(b, null, warnings, null);
             }
             if (!kept.equals(b.name())) {
-                warnings.add("preserved TileEntity belongs to " + kept + ", not " + b.name() + "; left out");
+                warnings.add("保留的 TileEntity 属于 " + kept + "，而不是 " + b.name() + "，已略去");
                 return new Result(b, null, warnings, null);
             }
             return new Result(b, tileEntity(legacy), warnings, null);
@@ -152,12 +152,12 @@ public final class ReverseTable {
         LegacyBlock m = modded.reverse(s);
         if (m != null) {
             if (be != null && !be.isEmpty() && hasContent(be)) {
-                warnings.add(s.getBlock().getName().getString() + ": block entity data is not written back");
+                warnings.add(s.getBlock().getName().getString() + "：方块实体数据不会回写");
             }
             return new Result(m, null, warnings, null);
         }
-        return new Result(null, null, warnings, modded.covers(s) ? s + " is a state 1.12 cannot store"
-                : s.getBlock().getName().getString() + " (" + s + ") has no 1.12 equivalent");
+        return new Result(null, null, warnings, modded.covers(s) ? s + " 是 1.12 无法存储的方块状态"
+                : s.getBlock().getName().getString() + "（" + s + "）在 1.12 中没有对应方块");
     }
 
     private static boolean hasContent(CompoundTag be) {

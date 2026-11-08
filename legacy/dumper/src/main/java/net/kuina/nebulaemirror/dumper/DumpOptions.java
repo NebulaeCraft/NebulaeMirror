@@ -32,7 +32,7 @@ final class DumpOptions {
             } else if (lower.startsWith("maxstates=")) {
                 o.maxStates = Integer.parseInt(s.substring(10));
             } else if (!lower.equals("all") && !s.isEmpty()) {
-                throw new IllegalArgumentException("Unknown option: " + a);
+                throw new IllegalArgumentException("未知选项：" + a);
             }
         }
         return o;

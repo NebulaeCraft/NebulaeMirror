@@ -42,7 +42,7 @@ final class ZoneLocks {
         @Override
         public String toString() {
             return zone + " [" + min[0] + " " + min[1] + " " + min[2] + " .. " + max[0] + " " + max[1] + " " + max[2]
-                    + "] by " + owner;
+                    + "]，签出者 " + owner;
         }
     }
 
@@ -88,17 +88,17 @@ final class ZoneLocks {
     /** Returns null when locked (also when the same zone with the same box is locked again), else why not. */
     synchronized String lock(String zone, int[] min, int[] max, String owner) {
         if (min == null || max == null || min.length != 3 || max.length != 3) {
-            return "lock needs min and max [x, y, z]";
+            return "锁定需要 min 和 max [x, y, z]";
         }
         int[] lo = {Math.min(min[0], max[0]), Math.min(min[1], max[1]), Math.min(min[2], max[2])};
         int[] hi = {Math.max(min[0], max[0]), Math.max(min[1], max[1]), Math.max(min[2], max[2])};
         for (Lock l : locks) {
             if (l.zone.equals(zone)) {
                 return java.util.Arrays.equals(l.min, lo) && java.util.Arrays.equals(l.max, hi) ? null
-                        : "zone " + zone + " is already locked with another box: " + l;
+                        : "区域 " + zone + " 已用另一个范围锁定：" + l;
             }
             if (l.intersects(lo, hi)) {
-                return "overlaps locked zone " + l;
+                return "与已锁定的区域 " + l + " 重叠";
             }
         }
         Lock n = new Lock();
@@ -109,7 +109,7 @@ final class ZoneLocks {
         n.created = System.currentTimeMillis();
         List<Lock> next = new ArrayList<>(locks);
         next.add(n);
-        return save(next) ? null : "cannot write " + file;
+        return save(next) ? null : "无法写入 " + file;
     }
 
     /** True if the zone was locked. */

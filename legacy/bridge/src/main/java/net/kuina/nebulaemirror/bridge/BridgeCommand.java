@@ -28,6 +28,7 @@ import java.util.UUID;
  * refuse. Permission nodes: nebulaemirror.bridge.apply / .rollback / .status (default: operators).
  */
 public final class BridgeCommand extends CommandBase {
+    private static final String USAGE = "/mirrorbridge apply <文件> [force] | rollback <任务> [force] | status | jobs | inbox | locks | unlock <区域> | cancel";
     private static UUID notifyPlayer;
 
     @Override
@@ -37,7 +38,7 @@ public final class BridgeCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | locks | unlock <zone> | cancel";
+        return USAGE;
     }
 
     @Override
@@ -85,7 +86,7 @@ public final class BridgeCommand extends CommandBase {
                 need(sender, MirrorBridge.PERM_ROLLBACK, args, 2);
                 File undo = new File(store.job(args[1]), "undo.nbt");
                 if (!undo.isFile()) {
-                    throw new CommandException("job " + args[1] + " has no undo file (it never changed anything)");
+                    throw new CommandException("任务 " + args[1] + " 没有撤销文件（它没有改动过任何方块）");
                 }
                 started(sender, MirrorBridge.start("rollback", undo, false, force));
                 break;
@@ -94,7 +95,7 @@ public final class BridgeCommand extends CommandBase {
                 need(sender, MirrorBridge.PERM_APPLY, args, 1);
                 Job j = MirrorBridge.current;
                 if (j == null || !j.running()) {
-                    throw new CommandException("no job is running");
+                    throw new CommandException("当前没有正在执行的任务");
                 }
                 j.cancel();
                 store.writeReport(j);
@@ -104,20 +105,21 @@ public final class BridgeCommand extends CommandBase {
             case "status": {
                 need(sender, MirrorBridge.PERM_STATUS, args, 1);
                 Job j = MirrorBridge.current;
-                say(sender, j == null ? "No job since the server started" : j.running() ? j.progress() : j.summary());
+                say(sender, j == null ? "服务器启动以来还没有任务" : j.running() ? j.progress() : j.summary());
                 break;
             }
             case "jobs": {
                 need(sender, MirrorBridge.PERM_STATUS, args, 1);
                 List<File> dirs = store.jobDirs();
-                StringBuilder sb = new StringBuilder(dirs.size() + " job(s), newest first:");
+                StringBuilder sb = new StringBuilder("共 " + dirs.size() + " 个任务，最新的在前：");
                 for (File d : dirs.subList(0, Math.min(10, dirs.size()))) {
                     JsonObject o = BridgeStore.readReport(d);
                     sb.append("\n  ").append(d.getName());
                     if (o != null) {
-                        sb.append(": ").append(o.get("kind").getAsString()).append(' ').append(o.get("phase").getAsString())
-                                .append(", ").append(o.get("changed").getAsInt()).append('/').append(o.get("entries").getAsInt())
-                                .append(" changed").append(o.get("undo").getAsBoolean() ? ", undo kept" : "");
+                        sb.append("：").append(Job.kindLabel(o.get("kind").getAsString())).append(' ')
+                                .append(Job.phaseLabel(o.get("phase").getAsString()))
+                                .append("，已修改 ").append(o.get("changed").getAsInt()).append('/').append(o.get("entries").getAsInt())
+                                .append(o.get("undo").getAsBoolean() ? "，保留了撤销文件" : "");
                     }
                 }
                 say(sender, sb.toString());
@@ -126,7 +128,7 @@ public final class BridgeCommand extends CommandBase {
             case "locks": {
                 need(sender, MirrorBridge.PERM_STATUS, args, 1);
                 List<ZoneLocks.Lock> all = MirrorBridge.locks.all();
-                StringBuilder sb = new StringBuilder(all.isEmpty() ? "No zones locked" : all.size() + " locked zone(s):");
+                StringBuilder sb = new StringBuilder(all.isEmpty() ? "没有锁定的区域" : "共 " + all.size() + " 个锁定的区域：");
                 for (ZoneLocks.Lock l : all) {
                     sb.append("\n  ").append(l);
                 }
@@ -135,15 +137,15 @@ public final class BridgeCommand extends CommandBase {
             }
             case "unlock": {
                 need(sender, MirrorBridge.PERM_LOCK, args, 2);
-                say(sender, MirrorBridge.locks.unlock(args[1]) ? "Zone " + args[1] + " unlocked (the mirror still has it "
-                        + "checked out: abandon or submit it there)" : "Zone " + args[1] + " is not locked");
+                say(sender, MirrorBridge.locks.unlock(args[1]) ? "区域 " + args[1] + " 已解锁（镜像服上它仍是签出状态，"
+                        + "请在镜像服放弃或提交）" : "区域 " + args[1] + " 没有锁定");
                 break;
             }
             case "inbox": {
                 need(sender, MirrorBridge.PERM_STATUS, args, 1);
                 String[] names = store.inbox.list();
-                say(sender, names == null || names.length == 0 ? "Inbox " + store.inbox + " is empty"
-                        : "Inbox " + store.inbox + ": " + String.join(", ", names));
+                say(sender, names == null || names.length == 0 ? "收件箱 " + store.inbox + " 是空的"
+                        : "收件箱 " + store.inbox + "：" + String.join(", ", names));
                 break;
             }
             default:
@@ -153,10 +155,10 @@ public final class BridgeCommand extends CommandBase {
 
     private static void need(ICommandSender sender, String node, String[] args, int minArgs) throws CommandException {
         if (!allowed(sender, node)) {
-            throw new CommandException("missing permission " + node);
+            throw new CommandException("缺少权限 " + node);
         }
         if (args.length < minArgs) {
-            throw new WrongUsageException("/mirrorbridge apply <file> [force] | rollback <job> [force] | status | jobs | inbox | locks | unlock <zone> | cancel");
+            throw new WrongUsageException(USAGE);
         }
     }
 
@@ -165,7 +167,7 @@ public final class BridgeCommand extends CommandBase {
             throw new CommandException(why);
         }
         notifyPlayer = sender instanceof EntityPlayerMP ? ((EntityPlayerMP) sender).getUniqueID() : null;
-        say(sender, "Started " + MirrorBridge.current.progress() + "; /mirrorbridge status");
+        say(sender, "已开始 " + MirrorBridge.current.progress() + "；进度见 /mirrorbridge status");
     }
 
     static void notifyDone(MinecraftServer server, Job j) {

@@ -78,7 +78,7 @@ public final class Patch {
             root = CompressedStreamTools.readCompressed(in);
         }
         if (root.getInteger("Version") != VERSION) {
-            throw new IOException(file.getName() + ": patch version " + root.getInteger("Version") + ", expected " + VERSION);
+            throw new IOException(file.getName() + "：补丁版本为 " + root.getInteger("Version") + "，应为 " + VERSION);
         }
         NBTTagList list = root.getTagList("Entries", Constants.NBT.TAG_COMPOUND);
         List<Entry> entries = new ArrayList<>(list.tagCount());
@@ -86,7 +86,7 @@ public final class Patch {
             NBTTagCompound t = list.getCompoundTagAt(i);
             int[] p = t.getIntArray("Pos");
             if (p.length != 3) {
-                throw new IOException(file.getName() + ": entry " + i + " has no position");
+                throw new IOException(file.getName() + "：第 " + i + " 个条目没有坐标");
             }
             NBTTagCompound ex = t.hasKey("Expect", Constants.NBT.TAG_COMPOUND) ? t.getCompoundTag("Expect") : null;
             NBTTagCompound te = t.hasKey("TileEntity", Constants.NBT.TAG_COMPOUND) ? t.getCompoundTag("TileEntity") : null;

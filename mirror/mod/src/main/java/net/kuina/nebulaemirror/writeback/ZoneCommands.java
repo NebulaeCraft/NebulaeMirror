@@ -74,15 +74,15 @@ public final class ZoneCommands {
     private static int withZone(CommandContext<CommandSourceStack> ctx, boolean ownerOnly, ZoneAction action) {
         ZoneManager m = ZoneManager.get();
         if (m == null) {
-            return fail(ctx, "zones are not available until the server has started");
+            return fail(ctx, "服务器启动完成后才能使用区域");
         }
         String name = StringArgumentType.getString(ctx, "name");
         ZoneManager.Zone z = m.zone(name);
         if (z == null) {
-            return fail(ctx, "no checked-out zone " + name);
+            return fail(ctx, "没有已签出的区域 " + name);
         }
         if (ownerOnly && !mayTouch(ctx.getSource(), z)) {
-            return fail(ctx, "zone " + name + " belongs to " + z.owner + " (needs " + MirrorPermissions.ZONE_OTHERS + ")");
+            return fail(ctx, "区域 " + name + " 属于 " + z.owner + "（需要权限 " + MirrorPermissions.ZONE_OTHERS + "）");
         }
         try {
             return action.run(ctx, z);
@@ -115,8 +115,8 @@ public final class ZoneCommands {
     /** checkout <name> without corners: the player's WorldEdit selection. */
     private static int checkoutSelection(CommandContext<CommandSourceStack> ctx) {
         if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("worldedit")) {
-            return fail(ctx, "WorldEdit is not installed on this server: give the two corners, "
-                    + "zone checkout <name> <from> <to>");
+            return fail(ctx, "本服务器没有安装 WorldEdit：请直接给出两个角点，"
+                    + "zone checkout <名称> <起点> <终点>");
         }
         WorldEditSelection.Result sel = WorldEditSelection.of(ctx.getSource().getTextName());
         if (sel.error() != null) {
@@ -128,7 +128,7 @@ public final class ZoneCommands {
     private static int checkout(CommandContext<CommandSourceStack> ctx, BoundingBox box, String note) {
         ZoneManager m = ZoneManager.get();
         if (m == null) {
-            return fail(ctx, "zones are not available until the server has started");
+            return fail(ctx, "服务器启动完成后才能使用区域");
         }
         CommandSourceStack src = ctx.getSource();
         ServerPlayer p = src.getPlayer();
@@ -137,34 +137,34 @@ public final class ZoneCommands {
         if (why != null) {
             return fail(ctx, why);
         }
-        say(src, "Checking out " + name + " [" + box.minX() + " " + box.minY() + " " + box.minZ() + " .. " + box.maxX()
-                + " " + box.maxY() + " " + box.maxZ() + "] (" + ZoneSnapshot.volume(box) + " blocks)" + note
-                + (m.locksOrigin() ? ": locking it at the origin and refreshing it from there first..."
-                : ": refreshing it from the origin first..."));
+        say(src, "正在签出 " + name + " [" + box.minX() + " " + box.minY() + " " + box.minZ() + " .. " + box.maxX()
+                + " " + box.maxY() + " " + box.maxZ() + "]（" + ZoneSnapshot.volume(box) + " 个方块）" + note
+                + (m.locksOrigin() ? "：先在原服锁定，再从原服刷新……"
+                : "：先从原服刷新……"));
         return 1;
     }
 
     private static int list(CommandContext<CommandSourceStack> ctx) {
         ZoneManager m = ZoneManager.get();
         if (m == null || m.zones().isEmpty()) {
-            say(ctx.getSource(), "No zones checked out");
+            say(ctx.getSource(), "没有已签出的区域");
             return 0;
         }
-        StringBuilder sb = new StringBuilder(m.zones().size() + " zone(s):");
+        StringBuilder sb = new StringBuilder("共 " + m.zones().size() + " 个区域：");
         for (ZoneManager.Zone z : m.zones()) {
-            sb.append("\n  ").append(z).append(" by ").append(z.owner).append(" since ").append(z.checkedOut)
-                    .append(z.locked ? ", locked at the origin" : ", NOT locked at the origin");
+            sb.append("\n  ").append(z).append("，签出者 ").append(z.owner).append("，签出于 ").append(z.checkedOut)
+                    .append(z.locked ? "，已在原服锁定" : "，原服未锁定");
         }
         say(ctx.getSource(), sb.toString());
         return m.zones().size();
     }
 
     private static int info(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone z) {
-        say(ctx.getSource(), z + " by " + z.owner + ", checked out " + z.checkedOut
-                + (z.refreshed ? "" : " (not refreshed from the origin)")
-                + (z.locked ? ", locked at the origin" : ", NOT locked at the origin")
-                + (z.lastJob != null ? ", last submit: origin job " + z.lastJob : "")
-                + "; " + ZoneSnapshot.volume(z.box()) + " blocks");
+        say(ctx.getSource(), z + "，签出者 " + z.owner + "，签出于 " + z.checkedOut
+                + (z.refreshed ? "" : "（没有从原服刷新）")
+                + (z.locked ? "，已在原服锁定" : "，原服未锁定")
+                + (z.lastJob != null ? "，上次提交：原服任务 " + z.lastJob : "")
+                + "；共 " + ZoneSnapshot.volume(z.box()) + " 个方块");
         return 1;
     }
 
@@ -173,28 +173,28 @@ public final class ZoneCommands {
         long t0 = System.currentTimeMillis();
         PatchBuilder.Result r = m.diff(z);
         StringBuilder sb = new StringBuilder();
-        sb.append("Zone ").append(z.name).append(": ").append(r.changedBlocks).append(" blocks differ from checkout, ")
-                .append(r.entries.size()).append(" to write back (").append(r.shapeOnly).append(" only changed shape); ")
-                .append(r.errorCount()).append(" errors, ").append(r.warningCount()).append(" warnings in ")
-                .append(System.currentTimeMillis() - t0).append(" ms");
-        append(sb, "ERROR", r.errors);
-        append(sb, "warning", r.warnings);
+        sb.append("区域 ").append(z.name).append("：与签出时相比有 ").append(r.changedBlocks).append(" 个方块不同，")
+                .append(r.entries.size()).append(" 个需要回写（其中 ").append(r.shapeOnly).append(" 个只是形状变化）；")
+                .append(r.errorCount()).append(" 个错误，").append(r.warningCount()).append(" 个警告，用时 ")
+                .append(System.currentTimeMillis() - t0).append(" 毫秒");
+        append(sb, "错误", r.errors);
+        append(sb, "警告", r.warnings);
         if (writePatch) {
             if (r.errorCount() > 0) {
-                sb.append("\nNo patch written: fix the errors first");
+                sb.append("\n未生成补丁：请先修正错误");
             } else {
                 Path f = m.writePatch(z, r);
-                sb.append("\nPatch with ").append(r.entries.size()).append(" entries: ").append(f);
+                sb.append("\n补丁（").append(r.entries.size()).append(" 条）：").append(f);
             }
         }
-        sb.append("\nFull report: ").append(m.dir(z.name).resolve("lint.json"));
+        sb.append("\n完整报告：").append(m.dir(z.name).resolve("lint.json"));
         say(ctx.getSource(), sb.toString());
         return r.errorCount() == 0 ? 1 : 0;
     }
 
     private static void append(StringBuilder sb, String level, Map<String, List<PatchBuilder.Problem>> problems) {
         problems.forEach((code, list) -> {
-            sb.append("\n").append(level).append(" ").append(code).append(':');
+            sb.append("\n").append(level).append(" ").append(code).append("：");
             for (int i = 0; i < Math.min(5, list.size()); i++) {
                 PatchBuilder.Problem p = list.get(i);
                 sb.append("\n  ").append(p.pos().getX()).append(' ').append(p.pos().getY()).append(' ')
@@ -212,14 +212,14 @@ public final class ZoneCommands {
         if (why != null) {
             return fail(ctx, why);
         }
-        say(src, "Sending " + z.name + " to the origin" + (force ? " (force: overwriting origin changes)" : "") + "...");
+        say(src, "正在把 " + z.name + " 发送到原服" + (force ? "（强制：覆盖原服上的改动）" : "") + "……");
         return 1;
     }
 
     private static int abandon(CommandContext<CommandSourceStack> ctx, ZoneManager.Zone z) throws Exception {
         CommandSourceStack src = ctx.getSource();
         String now = ZoneManager.get().abandon(z, msg -> say(src, msg));
-        say(src, now != null ? now : "Abandoning " + z.name + ": unlocking it at the origin and restoring its content...");
+        say(src, now != null ? now : "正在放弃 " + z.name + "：在原服解锁并恢复其内容……");
         return 1;
     }
 }

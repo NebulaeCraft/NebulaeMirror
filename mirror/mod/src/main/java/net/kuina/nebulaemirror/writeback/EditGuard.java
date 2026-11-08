@@ -118,8 +118,7 @@ public final class EditGuard {
         Long last = LAST_MESSAGE.get(p.getUUID());
         if (last == null || now - last > 3000) {
             LAST_MESSAGE.put(p.getUUID(), now);
-            p.displayClientMessage(Component.literal("Outside your checked-out zones the mirror follows the origin: "
-                    + "check out a zone first (/nebulaemirror zone checkout)").withStyle(ChatFormatting.RED), true);
+            p.displayClientMessage(Component.literal("签出区域之外，镜像以原服为准：请先签出区域（/nebulaemirror zone checkout）").withStyle(ChatFormatting.RED), true);
         }
     }
 }

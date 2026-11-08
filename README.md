@@ -22,7 +22,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 
 ## Versions
 
-All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). Since then: mirror mod 1.3 (creative tab config). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
+All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). Since then: mirror mod 1.3 (creative tab config); mirror mod 1.4, bridge 1.4, dumper 1.3 (all in-game messages in Chinese). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
 
 ## Layout
 

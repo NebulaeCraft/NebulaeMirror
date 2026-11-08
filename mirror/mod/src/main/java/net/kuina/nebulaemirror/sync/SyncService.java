@@ -83,7 +83,7 @@ public final class SyncService {
             NebulaeMirror.LOG.error("Sync: cannot read config/{}: {}", SyncConfig.FILE, e.toString());
             config = new SyncConfig();
             net.kuina.nebulaemirror.chat.ChatSync.reconfigure(server, null);
-            return "Cannot read config/" + SyncConfig.FILE + ": " + e;
+            return "无法读取 config/" + SyncConfig.FILE + "：" + e;
         }
         // Chat sync only needs the bridge, not the sync source.
         String chat = net.kuina.nebulaemirror.chat.ChatSync.reconfigure(server, config);
@@ -93,10 +93,10 @@ public final class SyncService {
         }
         if (!config.enabled()) {
             NebulaeMirror.LOG.info("Sync: off (no \"source\" in config/{})", SyncConfig.FILE);
-            return "Sync is off: set \"source\" in config/" + SyncConfig.FILE + ". " + chat;
+            return "同步未开启：请在 config/" + SyncConfig.FILE + " 中设置 \"source\"。" + chat;
         }
-        String msg = "Sync source " + config.source + (config.intervalMinutes > 0
-                ? ", every " + config.intervalMinutes + " min" : ", on command only");
+        String msg = "同步源 " + config.source + (config.intervalMinutes > 0
+                ? "，每 " + config.intervalMinutes + " 分钟一次" : "，仅手动执行");
         if (config.intervalMinutes > 0) {
             timer = Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "NebulaeMirror-Sync-Timer");
@@ -111,7 +111,7 @@ public final class SyncService {
             }, 1, config.intervalMinutes, TimeUnit.MINUTES);
         }
         NebulaeMirror.LOG.info("Sync: {}", msg);
-        return msg + ". " + chat;
+        return msg + "。" + chat;
     }
 
     /** How a run ended: ok = finished, not cancelled, no chunk errors. Delivered on the server thread. */
@@ -142,18 +142,18 @@ public final class SyncService {
     synchronized String start(SyncRun.Mode mode, int[] force, boolean pullFirst, Consumer<Outcome> done) {
         SyncConfig c = config;
         if (!c.enabled()) {
-            return "sync is off: set \"source\" in config/" + SyncConfig.FILE;
+            return "同步未开启：请在 config/" + SyncConfig.FILE + " 中设置 \"source\"";
         }
         if (current != null) {
-            return "a " + current.mode.name().toLowerCase() + " run is in progress (" + current.progress() + ")";
+            return "已有一次“" + current.mode.label + "”同步在进行中（" + current.progress() + "）";
         }
         if (!Files.isRegularFile(Path.of(c.source).resolve("level.dat"))) {
-            return c.source + " has no level.dat";
+            return c.source + " 中没有 level.dat";
         }
         SyncState state = new SyncState(server.getWorldPath(LevelResource.ROOT));
         if (mode != SyncRun.Mode.BASELINE && !state.hasBaseline()) {
-            return "no sync baseline in " + state.root() + ": do the full import from the sync source, or run "
-                    + "\"/nebulaemirror sync baseline\" if this world was imported from exactly the current source";
+            return state.root() + " 中没有同步基线：请从同步源做一次完整导入；如果这个世界正是从当前同步源导入的，"
+                    + "也可以执行 /nebulaemirror sync baseline";
         }
         MirrorEdits edits = MirrorEdits.get();
         // Chunks edited in the mirror are re-applied from the origin (a refresh only takes those in its range).
@@ -179,7 +179,7 @@ public final class SyncService {
                 report.addProperty("error", t.toString());
                 lastReport = report;
                 writeReport(state, report);
-                outcome = new Outcome(false, "sync " + mode.name().toLowerCase() + " failed: " + t, report);
+                outcome = new Outcome(false, "同步（" + mode.label + "）失败：" + t, report);
                 if (run.stopping) {
                     NebulaeMirror.LOG.info("Sync: interrupted by server stop; the next run redoes unrecorded chunks");
                 } else if (t instanceof IOException) {
@@ -199,22 +199,22 @@ public final class SyncService {
     }
 
     static String summary(JsonObject r) {
-        String s = "sync " + r.get("mode").getAsString() + (r.get("cancelled").getAsBoolean() ? " (cancelled)" : "")
-                + " in " + r.get("seconds").getAsDouble() + " s";
+        String s = "同步（" + SyncRun.Mode.label(r.get("mode").getAsString()) + "）"
+                + (r.get("cancelled").getAsBoolean() ? "已取消" : "完成") + "，用时 " + r.get("seconds").getAsDouble() + " 秒";
         if ("baseline".equals(r.get("mode").getAsString())) {
-            return s + ": recorded " + r.get("recorded").getAsLong() + " chunks from " + r.get("regions").getAsLong()
-                    + " regions";
+            return s + "：从 " + r.get("regions").getAsLong() + " 个区域文件记录了 " + r.get("recorded").getAsLong()
+                    + " 个区块";
         }
         JsonObject conv = r.getAsJsonObject("converter");
-        return s + ": " + r.get("regionsChanged").getAsLong() + "/" + r.get("regions").getAsLong() + " regions changed, "
-                + r.get("chunksTouched").getAsLong() + " chunks re-saved, " + r.get("chunksConverted").getAsLong()
-                + " changed (" + r.get("chunksWrittenToDisk").getAsLong() + " written to disk, "
-                + r.get("chunksPatchedLive").getAsLong() + " patched live: " + r.get("liveBlocksChanged").getAsLong()
-                + " blocks, " + r.get("liveBlockEntitiesChanged").getAsLong() + " block entities), "
-                + r.get("chunksExcluded").getAsLong() + " excluded, "
+        return s + "：区域文件 " + r.get("regionsChanged").getAsLong() + "/" + r.get("regions").getAsLong() + " 个有变化，"
+                + r.get("chunksTouched").getAsLong() + " 个区块被重新保存，其中 " + r.get("chunksConverted").getAsLong()
+                + " 个有改动（写盘 " + r.get("chunksWrittenToDisk").getAsLong() + " 个，在线修补 "
+                + r.get("chunksPatchedLive").getAsLong() + " 个：" + r.get("liveBlocksChanged").getAsLong()
+                + " 个方块、" + r.get("liveBlockEntitiesChanged").getAsLong() + " 个方块实体），"
+                + "排除 " + r.get("chunksExcluded").getAsLong() + " 个，"
                 + mirrorEdits(r)
-                + conv.get("unknownBlocks").getAsLong()
-                + " unknown blocks, " + conv.get("failedChunks").getAsLong() + " errors";
+                + "未知方块 " + conv.get("unknownBlocks").getAsLong()
+                + " 个，错误 " + conv.get("failedChunks").getAsLong() + " 个";
     }
 
     private static String mirrorEdits(JsonObject r) {
@@ -223,8 +223,8 @@ public final class SyncService {
             return "";
         }
         long restored = r.get("mirrorEditedChunksRestored").getAsLong();
-        return restored + " chunk(s) edited in the mirror re-applied from the origin"
-                + (restored < edited ? " (" + (edited - restored) + " not in the origin copy, left as they are)" : "") + ", ";
+        return "镜像中改动过的区块有 " + restored + " 个已按原服内容恢复"
+                + (restored < edited ? "（另有 " + (edited - restored) + " 个不在原服副本中，保持不变）" : "") + "，";
     }
 
     private void writeReport(SyncState state, JsonObject report) {
@@ -241,44 +241,42 @@ public final class SyncService {
     String cancel() {
         SyncRun r = current;
         if (r == null) {
-            return "no sync run in progress";
+            return "当前没有进行中的同步";
         }
         r.cancelled = true;
         return r.pulling()
-                ? "the " + r.mode.name().toLowerCase() + " run stops once the running pull has finished (the pull is "
-                + "not interrupted, so the origin gets save-on)"
-                : "cancelling the " + r.mode.name().toLowerCase() + " run";
+                ? "“" + r.mode.label + "”同步会在当前拉取结束后停止（拉取不会被中断，以保证原服恢复 save-on）"
+                : "正在取消“" + r.mode.label + "”同步";
     }
 
     String status() {
         SyncConfig c = config;
         StringBuilder sb = new StringBuilder();
         if (!c.enabled()) {
-            sb.append("Sync is off (no \"source\" in config/").append(SyncConfig.FILE).append(").");
+            sb.append("同步未开启（config/").append(SyncConfig.FILE).append(" 中没有 \"source\"）。");
         } else {
-            sb.append("Source ").append(c.source).append(c.intervalMinutes > 0 ? ", every " + c.intervalMinutes + " min"
-                    : ", on command only").append(c.pullCommand.isEmpty() ? ", no pull command" : "");
+            sb.append("同步源 ").append(c.source).append(c.intervalMinutes > 0 ? "，每 " + c.intervalMinutes + " 分钟一次"
+                    : "，仅手动执行").append(c.pullCommand.isEmpty() ? "，未配置拉取命令" : "");
             SyncState state = new SyncState(server.getWorldPath(LevelResource.ROOT));
-            sb.append(state.hasBaseline() ? ", baseline " + state.baselineInfo().get("time") : ", NO BASELINE");
+            sb.append(state.hasBaseline() ? "，基线时间 " + state.baselineInfo().get("time") : "，没有基线");
             if (!c.exclude.isEmpty()) {
-                sb.append(", ").append(c.exclude.size()).append(" excluded area(s)");
+                sb.append("，").append(c.exclude.size()).append(" 个排除区域");
             }
         }
         MirrorEdits edits = MirrorEdits.get();
         if (edits != null && edits.size() > 0) {
-            sb.append("\n").append(edits.size()).append(" chunk(s) edited in the mirror are re-applied from the origin "
-                    + "at the next sync");
+            sb.append("\n镜像中改动过的 ").append(edits.size()).append(" 个区块会在下次同步时按原服内容恢复");
         }
         SyncRun r = current;
         if (r != null) {
-            sb.append("\nRunning ").append(r.mode.name().toLowerCase()).append(" for ")
-                    .append((System.currentTimeMillis() - r.started) / 1000).append(" s: ").append(r.progress());
+            sb.append("\n正在进行“").append(r.mode.label).append("”，已用 ")
+                    .append((System.currentTimeMillis() - r.started) / 1000).append(" 秒：").append(r.progress());
         }
         JsonObject last = lastReport;
         if (last != null) {
-            sb.append("\nLast: ").append(last.has("error") ? "FAILED " + last.get("error").getAsString() : summary(last));
+            sb.append("\n上次：").append(last.has("error") ? "失败 " + last.get("error").getAsString() : summary(last));
         } else if (lastError != null) {
-            sb.append("\nLast error: ").append(lastError);
+            sb.append("\n上次错误：").append(lastError);
         }
         return sb.toString();
     }

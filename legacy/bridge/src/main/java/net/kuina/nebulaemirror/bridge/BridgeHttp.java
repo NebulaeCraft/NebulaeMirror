@@ -87,7 +87,7 @@ final class BridgeHttp {
         JsonObject out;
         try {
             if (!tokenOk(ex.getRequestHeaders().getFirst("X-Mirror-Token"))) {
-                throw new HttpError(401, "missing or wrong X-Mirror-Token");
+                throw new HttpError(401, "X-Mirror-Token 缺失或不正确");
             }
             String path = ex.getRequestURI().getPath();
             Map<String, String> q = query(ex.getRequestURI().getRawQuery());
@@ -121,13 +121,13 @@ final class BridgeHttp {
                 JsonObject in = json(ex);
                 String text = in.has("text") ? in.get("text").getAsString() : "";
                 if (text.isEmpty() || text.length() > ChatRelay.MAX_TEXT) {
-                    throw new HttpError(400, "text must be 1.." + ChatRelay.MAX_TEXT + " characters");
+                    throw new HttpError(400, "文本长度必须为 1.." + ChatRelay.MAX_TEXT + " 个字符");
                 }
                 server.addScheduledTask(() -> ChatRelay.broadcast(server, text));
                 out = new JsonObject();
                 out.addProperty("ok", true);
             } else {
-                throw new HttpError(404, "no such endpoint: " + method + " " + path);
+                throw new HttpError(404, "没有这个接口：" + method + " " + path);
             }
         } catch (HttpError e) {
             code = e.code;
@@ -194,7 +194,7 @@ final class BridgeHttp {
     private JsonObject lock(JsonObject in) throws HttpError {
         String zone = in.has("zone") ? in.get("zone").getAsString() : "";
         if (!zone.matches("[a-z0-9_-]{1,32}")) {
-            throw new HttpError(400, "bad zone name");
+            throw new HttpError(400, "区域名无效");
         }
         String why = MirrorBridge.locks.lock(zone, ints(in.get("min")), ints(in.get("max")),
                 in.has("owner") ? in.get("owner").getAsString() : "mirror");
@@ -210,7 +210,7 @@ final class BridgeHttp {
     private JsonObject submit(String zone, boolean force, byte[] body) throws HttpError, IOException {
         ZoneLocks.Lock lock = MirrorBridge.locks.get(zone);
         if (lock == null && !force) {
-            throw new HttpError(409, "zone " + zone + " is not locked here (check it out again, or submit with force)");
+            throw new HttpError(409, "区域 " + zone + " 在原服没有锁定（请重新签出，或用 force 提交）");
         }
         File f = new File(MirrorBridge.store.inbox, zone + "-" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".nbt");
         Files.write(f.toPath(), body);
@@ -219,17 +219,17 @@ final class BridgeHttp {
             patch = Patch.read(f);
         } catch (IOException e) {
             Files.deleteIfExists(f.toPath());
-            throw new HttpError(400, "not a patch: " + e.getMessage());
+            throw new HttpError(400, "不是有效的补丁：" + e.getMessage());
         }
         if (!zone.equals(patch.zone)) {
             Files.deleteIfExists(f.toPath());
-            throw new HttpError(400, "patch is for zone " + patch.zone + ", not " + zone);
+            throw new HttpError(400, "补丁属于区域 " + patch.zone + "，而不是 " + zone);
         }
         if (lock != null) {
             for (Patch.Entry e : patch.entries) {
                 if (!lock.contains(e.x, e.y, e.z)) {
                     Files.deleteIfExists(f.toPath());
-                    throw new HttpError(400, "entry " + e.x + " " + e.y + " " + e.z + " lies outside the locked zone");
+                    throw new HttpError(400, "条目 " + e.x + " " + e.y + " " + e.z + " 在锁定区域之外");
                 }
             }
         }
@@ -250,11 +250,11 @@ final class BridgeHttp {
             return j.report();
         }
         if (!id.matches("[A-Za-z0-9_-]+")) {
-            throw new HttpError(400, "bad job id");
+            throw new HttpError(400, "任务 ID 无效");
         }
         JsonObject o = BridgeStore.readReport(MirrorBridge.store.job(id));
         if (o == null) {
-            throw new HttpError(404, "no job " + id);
+            throw new HttpError(404, "没有任务 " + id);
         }
         return o;
     }
@@ -266,7 +266,7 @@ final class BridgeHttp {
         try {
             return Long.parseLong(s);
         } catch (NumberFormatException e) {
-            throw new HttpError(400, "not a number: " + s);
+            throw new HttpError(400, "不是数字：" + s);
         }
     }
 
@@ -283,7 +283,7 @@ final class BridgeHttp {
         try {
             return new JsonParser().parse(s).getAsJsonObject();
         } catch (RuntimeException e) {
-            throw new HttpError(400, "body is not a JSON object");
+            throw new HttpError(400, "请求体不是 JSON 对象");
         }
     }
 
@@ -294,7 +294,7 @@ final class BridgeHttp {
         while ((n = in.read(buf)) > 0) {
             out.write(buf, 0, n);
             if (out.size() > max) {
-                throw new HttpError(413, "body over " + max + " bytes");
+                throw new HttpError(413, "请求体超过 " + max + " 字节");
             }
         }
         return out.toByteArray();

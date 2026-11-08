@@ -97,6 +97,12 @@ final class Dumper {
                 + " models, " + (textures == null ? 0 : textures.copied + textures.fromAtlas) + " textures, " + errors.size() + " errors";
     }
 
+    /** {@link #summary()} for the in-game message. */
+    String chatSummary() {
+        return blockCount + " 个方块，" + stateCount + " 个状态，" + (models == null ? 0 : models.size())
+                + " 个模型，" + (textures == null ? 0 : textures.copied + textures.fromAtlas) + " 张纹理，" + errors.size() + " 个错误";
+    }
+
     File run() throws IOException {
         long start = System.currentTimeMillis();
         File out = new File(Loader.instance().getConfigDir().getParentFile(),

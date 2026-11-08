@@ -110,8 +110,8 @@ final class Job {
                 if (e.expectName != null && !alreadyTarget && (!e.expectName.equals(curName) || e.expectMeta != curMeta)) {
                     conflictCount++;
                     if (conflicts.size() < SAMPLES) {
-                        conflicts.add(e.x + " " + e.y + " " + e.z + ": expected " + e.expectName + ":" + e.expectMeta
-                                + ", origin has " + curName + ":" + curMeta);
+                        conflicts.add(e.x + " " + e.y + " " + e.z + "：签出时为 " + e.expectName + ":" + e.expectMeta
+                                + "，原服现在是 " + curName + ":" + curMeta);
                     }
                 }
                 NBTTagCompound curTe = null;
@@ -129,11 +129,11 @@ final class Job {
             return;
         }
         if (!unknownNames.isEmpty()) {
-            refuse("blocks not registered on this server: " + unknownNames);
+            refuse("本服务器没有注册这些方块：" + unknownNames);
         } else if (invalid > 0) {
-            refuse(invalid + " entries outside y 0..255");
+            refuse(invalid + " 个条目超出 y 0..255");
         } else if (conflictCount > 0 && !force) {
-            refuse(conflictCount + " blocks changed at the origin since checkout (use force to overwrite them)");
+            refuse("签出后原服上有 " + conflictCount + " 个方块被改动（用 force 覆盖）");
         } else {
             new Patch(patch.zone, patch.min, patch.max, undo).write(new File(dir, "undo.nbt"), "undo of " + id);
             cursor = 0;
@@ -186,13 +186,13 @@ final class Job {
             int want = states[cursor].getBlock().getMetaFromState(states[cursor]);
             String problem = null;
             if (!curName.equals(e.name) || cur.getBlock().getMetaFromState(cur) != want) {
-                problem = "has " + curName + ":" + cur.getBlock().getMetaFromState(cur) + " instead of " + e.name + ":" + want;
+                problem = "实际为 " + curName + ":" + cur.getBlock().getMetaFromState(cur) + "，应为 " + e.name + ":" + want;
             } else if (e.tileEntity != null) {
                 TileEntity te = world.getTileEntity(pos);
                 String id = e.tileEntity.getString("id");
                 NBTTagCompound now = te == null ? null : te.writeToNBT(new NBTTagCompound());
                 if (now == null || !id.equals(now.getString("id"))) {
-                    problem = "has no " + id + " TileEntity";
+                    problem = "没有 " + id + " TileEntity";
                 }
             }
             if (problem != null) {
@@ -220,8 +220,54 @@ final class Job {
     }
 
     String progress() {
-        return kind + " " + id + " (" + patch.zone + "): " + phase.name().toLowerCase() + " " + cursor + "/"
+        return kindLabel() + "任务 " + id + "（" + patch.zone + "）：" + phaseLabel() + " " + cursor + "/"
                 + patch.entries.size();
+    }
+
+    /** Chinese name of the job kind (apply / rollback / submit) for in-game messages. */
+    String kindLabel() {
+        return kindLabel(kind);
+    }
+
+    static String kindLabel(String kind) {
+        switch (kind) {
+            case "apply":
+                return "应用";
+            case "rollback":
+                return "回滚";
+            case "submit":
+                return "提交";
+            default:
+                return kind;
+        }
+    }
+
+    private String phaseLabel() {
+        return phaseLabel(phase.name().toLowerCase());
+    }
+
+    /** Chinese name of a phase as stored in job.json. */
+    static String phaseLabel(String phase) {
+        switch (phase) {
+            case "check":
+                return "检查中";
+            case "apply":
+                return "写入中";
+            case "verify":
+                return "校验中";
+            case "done":
+                return "已完成";
+            case "refused":
+                return "被拒绝";
+            case "failed":
+                return "失败";
+            case "cancelled":
+                return "已取消";
+            case "interrupted":
+                return "被中断";
+            default:
+                return phase;
+        }
     }
 
     JsonObject report() {
@@ -260,20 +306,20 @@ final class Job {
     String summary() {
         switch (phase) {
             case DONE:
-                return kind + " " + id + " done: " + changed + " blocks changed, " + unchanged + " already as patched"
-                        + (tileEntityFailures > 0 ? ", " + tileEntityFailures + " TileEntities could not be created" : "")
-                        + (conflictCount > 0 ? " (" + conflictCount + " conflicts overwritten)" : "")
-                        + (verifyMismatches > 0 ? "; " + verifyMismatches + " NOT as patched on read-back: "
-                        + String.join("; ", mismatches.subList(0, Math.min(3, mismatches.size()))) : "")
-                        + "; undo with /mirrorbridge rollback " + id;
+                return kindLabel() + "任务 " + id + " 已完成：修改了 " + changed + " 个方块，" + unchanged + " 个本来就和补丁一致"
+                        + (tileEntityFailures > 0 ? "，" + tileEntityFailures + " 个 TileEntity 无法创建" : "")
+                        + (conflictCount > 0 ? "（覆盖了 " + conflictCount + " 处冲突）" : "")
+                        + (verifyMismatches > 0 ? "；回读时有 " + verifyMismatches + " 个与补丁不一致："
+                        + String.join("；", mismatches.subList(0, Math.min(3, mismatches.size()))) : "")
+                        + "；撤销请用 /mirrorbridge rollback " + id;
             case REFUSED:
-                return kind + " " + id + " refused: " + error + (conflicts.isEmpty() ? "" : "\n  " + String.join("\n  ",
+                return kindLabel() + "任务 " + id + " 被拒绝：" + error + (conflicts.isEmpty() ? "" : "\n  " + String.join("\n  ",
                         conflicts.subList(0, Math.min(5, conflicts.size()))));
             case CANCELLED:
-                return kind + " " + id + " cancelled after " + cursor + " entries"
-                        + (new File(dir, "undo.nbt").isFile() ? "; undo with /mirrorbridge rollback " + id : "");
+                return kindLabel() + "任务 " + id + " 在第 " + cursor + " 个条目后取消"
+                        + (new File(dir, "undo.nbt").isFile() ? "；撤销请用 /mirrorbridge rollback " + id : "");
             default:
-                return progress() + (error != null ? ": " + error : "");
+                return progress() + (error != null ? "：" + error : "");
         }
     }
 }

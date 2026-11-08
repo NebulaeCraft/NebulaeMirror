@@ -59,7 +59,7 @@ public final class BridgeClient {
             try {
                 o = JsonParser.parseString(r.body()).getAsJsonObject();
             } catch (RuntimeException e) {
-                throw new BridgeException(r.statusCode(), "bridge answered HTTP " + r.statusCode() + " without JSON");
+                throw new BridgeException(r.statusCode(), "桥接返回了 HTTP " + r.statusCode() + "，但不是 JSON");
             }
             if (r.statusCode() != 200) {
                 throw new BridgeException(r.statusCode(), o.has("error") ? o.get("error").getAsString()
@@ -79,7 +79,7 @@ public final class BridgeClient {
             return t.getMessage();
         }
         if (t instanceof java.net.ConnectException || t instanceof java.net.http.HttpConnectTimeoutException) {
-            return "the origin's bridge is not reachable (" + t + ")";
+            return "无法连接原服的桥接（" + t + "）";
         }
         return t.toString();
     }

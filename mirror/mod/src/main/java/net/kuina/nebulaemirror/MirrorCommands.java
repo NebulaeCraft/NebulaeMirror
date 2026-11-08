@@ -111,8 +111,8 @@ public final class MirrorCommands {
         }
         long finalNonAir = nonAir;
         long finalChunks = chunks;
-        src.sendSuccess(() -> Component.literal("NebulaeMirror stats: " + finalChunks + " chunks, " + finalNonAir
-                + " non-air blocks " + byNamespace + " -> " + file), false);
+        src.sendSuccess(() -> Component.literal("NebulaeMirror 统计：" + finalChunks + " 个区块，" + finalNonAir
+                + " 个非空气方块 " + byNamespace + " -> " + file), false);
         return (int) Math.min(Integer.MAX_VALUE, nonAir);
     }
 }

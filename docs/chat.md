@@ -4,7 +4,7 @@ Player chat, joins and leaves are shown on the other server. Everything is confi
 
 ## Setup
 
-1. Install bridge 1.3 on the origin (`legacy/bridge/build/libs/MirrorBridge-1.12.2-1.3.jar`; an installed 0.3.0 is the same code) and restart it.
+1. Install bridge 1.3 or later on the origin (`legacy/bridge/build/libs/MirrorBridge-1.12.2-1.4.jar`) and restart it.
 2. Fill in `bridge.url`/`bridge.token` in the mirror's sync config, as for write-back. Chat sync does not need `source`, so it also works with sync switched off.
 3. Set `chat.enabled` to `true`, then run `/nebulaemirror sync reload` (no restart needed). The first start of the new mirror mod adds the `chat` section with the defaults below, switched off.
 

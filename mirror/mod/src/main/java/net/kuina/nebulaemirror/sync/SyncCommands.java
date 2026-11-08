@@ -41,7 +41,7 @@ public final class SyncCommands {
     }
 
     private static int reply(CommandContext<CommandSourceStack> ctx, String msg) {
-        String m = msg == null ? "sync is not available until the server has started" : msg;
+        String m = msg == null ? "服务器启动完成后才能使用同步" : msg;
         ctx.getSource().sendSuccess(() -> Component.literal(m), false);
         return 1;
     }
@@ -54,10 +54,10 @@ public final class SyncCommands {
         CommandSourceStack src = ctx.getSource();
         String why = s.start(mode, force, false, outcome -> src.sendSuccess(() -> Component.literal(outcome.message()), true));
         if (why != null) {
-            src.sendFailure(Component.literal("Not started: " + why));
+            src.sendFailure(Component.literal("未启动：" + why));
             return 0;
         }
-        src.sendSuccess(() -> Component.literal("Sync " + mode.name().toLowerCase() + " started; see /nebulaemirror sync status"), true);
+        src.sendSuccess(() -> Component.literal("已开始同步（" + mode.label + "），进度见 /nebulaemirror sync status"), true);
         return 1;
     }
 }

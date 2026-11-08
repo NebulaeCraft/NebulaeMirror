@@ -88,8 +88,7 @@ final class WorldEditGuard {
             if (!told) {
                 told = true;
                 // Plain-text variant: the text component classes are in a library we do not compile against.
-                printError(actor, "Blocks outside your checked-out zones are not changed (check out a zone first: "
-                        + "/nebulaemirror zone checkout)");
+                printError(actor, "你签出的区域之外的方块不会被修改（请先签出区域：/nebulaemirror zone checkout）");
             }
             return false;
         }

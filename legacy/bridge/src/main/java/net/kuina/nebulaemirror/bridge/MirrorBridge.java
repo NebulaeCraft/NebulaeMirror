@@ -34,7 +34,7 @@ import java.io.IOException;
         serverSideOnly = true, acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
 public final class MirrorBridge {
     public static final String MODID = "mirrorbridge";
-    public static final String VERSION = "1.3";
+    public static final String VERSION = "1.4";
     public static final Logger LOG = LogManager.getLogger("MirrorBridge");
 
     /** Permission nodes (Forge PermissionAPI; SpongeForge hands them to LuckPerms). Default: operators. */
@@ -130,7 +130,7 @@ public final class MirrorBridge {
     static String start(String kind, File patchFile, boolean consumeSource, boolean force) {
         Job running = current;
         if (running != null && running.running()) {
-            return "busy: " + running.progress();
+            return "正忙：" + running.progress();
         }
         try {
             Patch patch = Patch.read(patchFile);
@@ -144,7 +144,7 @@ public final class MirrorBridge {
                     force ? " (force)" : "");
             return null;
         } catch (IOException | RuntimeException ex) {
-            return "cannot read " + patchFile.getName() + ": " + ex;
+            return "无法读取 " + patchFile.getName() + "：" + ex;
         }
     }
 

@@ -27,7 +27,7 @@ import java.io.File;
         clientSideOnly = true, acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
 public class MirrorDumper {
     public static final String MODID = "mirrordumper";
-    public static final String VERSION = "1.2";
+    public static final String VERSION = "1.3";
     /** Bump when the output layout changes; the generator checks it. */
     public static final int SCHEMA = 1;
     public static final Logger LOG = LogManager.getLogger("MirrorDumper");

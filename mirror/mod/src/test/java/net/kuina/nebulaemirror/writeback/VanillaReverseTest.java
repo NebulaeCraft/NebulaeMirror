@@ -231,7 +231,7 @@ class VanillaReverseTest {
         // vanilla wins where 1.12 vanilla has the block
         assertEquals("minecraft:stone", t.reverse(Blocks.GRANITE.defaultBlockState(), null, registries).block().name());
         ReverseTable.Result cherry = t.reverse(Blocks.CHERRY_PLANKS.defaultBlockState(), null, registries);
-        assertTrue(!cherry.ok() && cherry.error().contains("no 1.12 equivalent"), String.valueOf(cherry.error()));
+        assertTrue(!cherry.ok() && cherry.error().contains("在 1.12 中没有对应方块"), String.valueOf(cherry.error()));
         assertEquals(LegacyBlock.AIR, t.reverse(Blocks.CAVE_AIR.defaultBlockState(), null, registries).block());
     }
 

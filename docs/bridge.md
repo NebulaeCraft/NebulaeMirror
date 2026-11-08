@@ -14,7 +14,7 @@
 cd legacy/bridge && JAVA_HOME=$(/usr/libexec/java_home -v 1.8) ./gradlew build
 ```
 
-Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-1.3.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
+Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-1.4.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
 
 | Path | Contents |
 |---|---|

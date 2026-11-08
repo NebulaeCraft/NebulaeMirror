@@ -56,11 +56,11 @@ final class BridgeStore {
     /** A patch file in the inbox (no paths: only names inside the inbox are accepted). */
     File inboxFile(String name) throws IOException {
         if (name.contains("/") || name.contains("\\") || name.contains("..")) {
-            throw new IOException("give a file name inside " + inbox);
+            throw new IOException("请给出 " + inbox + " 中的文件名");
         }
         File f = new File(inbox, name);
         if (!f.isFile()) {
-            throw new IOException(f + " not found");
+            throw new IOException("找不到 " + f);
         }
         return f;
     }

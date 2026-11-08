@@ -51,7 +51,26 @@ import java.util.stream.Stream;
  * </ol>
  */
 final class SyncRun {
-    enum Mode { PULL_AND_APPLY, APPLY, REFRESH, BASELINE }
+    enum Mode {
+        PULL_AND_APPLY("拉取并应用"), APPLY("应用"), REFRESH("刷新"), BASELINE("建立基线");
+
+        /** Chinese name for in-game messages. */
+        final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        /** Label for a mode as recorded in a run report ({@code name().toLowerCase()}). */
+        static String label(String reportMode) {
+            for (Mode m : values()) {
+                if (m.name().equalsIgnoreCase(reportMode)) {
+                    return m.label;
+                }
+            }
+            return reportMode;
+        }
+    }
 
     /** A chunk to record in SyncState once the world holding it has been saved. */
     record Applied(int rx, int rz, int index, int timestamp, long hash) {
@@ -74,9 +93,9 @@ final class SyncRun {
     final Map<Long, Long> edits;
     final long started = System.currentTimeMillis();
 
-    volatile String phase = "starting";
+    volatile String phase = "启动中";
     boolean pulling() {
-        return "pulling".equals(phase);
+        return "拉取中".equals(phase);
     }
 
     volatile boolean cancelled;
@@ -130,7 +149,7 @@ final class SyncRun {
         if (cancelled) {
             return report(source);
         }
-        phase = "reading level.dat";
+        phase = "读取 level.dat";
         LegacyLevel legacy = new LegacyLevel(source.resolve("level.dat"));
         ForwardTable table = mode == Mode.BASELINE ? null : new ForwardTable(legacy);
         ChunkConverter converter = table == null ? null : new ChunkConverter(table, stats);
@@ -143,7 +162,7 @@ final class SyncRun {
                     .sorted().toList();
         }
         regionsTotal.set(regions.size());
-        phase = mode == Mode.BASELINE ? "recording baseline" : "scanning";
+        phase = mode == Mode.BASELINE ? "记录基线" : "扫描中";
         ExecutorService pool = Executors.newFixedThreadPool(config.threads, r -> {
             Thread t = new Thread(r, "NebulaeMirror-Sync-Worker");
             t.setDaemon(true);
@@ -176,7 +195,7 @@ final class SyncRun {
                     break;
                 }
                 if (stopping) {
-                    throw new java.util.concurrent.CancellationException("server stopping");
+                    throw new java.util.concurrent.CancellationException("服务器正在关闭");
                 }
                 if (cancelled) {
                     pool.shutdownNow();
@@ -185,7 +204,7 @@ final class SyncRun {
                     }
                 }
                 if (!producing) {
-                    phase = "applying";
+                    phase = "应用中";
                 }
                 long done = chunksWritten.get() + chunksPatched.get();
                 if (done - lastCheckpoint >= config.checkpointChunks) {
@@ -210,7 +229,7 @@ final class SyncRun {
             NebulaeMirror.LOG.info("Sync: no pullCommand configured, applying {} as it is", config.source);
             return;
         }
-        phase = "pulling";
+        phase = "拉取中";
         long t0 = System.currentTimeMillis();
         ProcessBuilder pb = new ProcessBuilder(config.pullCommand).redirectErrorStream(true)
                 .directory(server.getServerDirectory().toAbsolutePath().toFile());
@@ -235,12 +254,12 @@ final class SyncRun {
                 if (stopping) {
                     NebulaeMirror.LOG.info("Sync: server stopping; the pull keeps running on its own and turns "
                             + "saving back on at the origin when done");
-                    throw new java.util.concurrent.CancellationException("server stopping during pull");
+                    throw new java.util.concurrent.CancellationException("拉取期间服务器正在关闭");
                 }
                 if (System.currentTimeMillis() - t0 > config.pullTimeoutSeconds * 1000L) {
                     killPull(p);
-                    throw new IOException("pull command timed out after " + config.pullTimeoutSeconds
-                            + " s and was killed; check that the origin is saving again (RCON: save-on)");
+                    throw new IOException("拉取命令超时（" + config.pullTimeoutSeconds
+                            + " 秒）已被终止；请确认原服已恢复保存（RCON：save-on）");
                 }
             }
         } finally {
@@ -251,7 +270,7 @@ final class SyncRun {
             return;
         }
         if (p.exitValue() != 0) {
-            throw new IOException("pull command exited with " + p.exitValue() + " (see the [pull] log lines)");
+            throw new IOException("拉取命令退出码为 " + p.exitValue() + "（见日志中的 [pull] 行）");
         }
     }
 
@@ -279,7 +298,7 @@ final class SyncRun {
             return;
         }
         String was = phase;
-        phase = "saving";
+        phase = "保存中";
         onMain(() -> level.getChunkSource().save(false));
         level.getChunkSource().chunkMap.flushWorker();
         Map<Long, List<Applied>> byRegion = new HashMap<>();
@@ -307,7 +326,7 @@ final class SyncRun {
                 return;
             } catch (TimeoutException e) {
                 if (stopping) {
-                    throw new java.util.concurrent.CancellationException("server stopping");
+                    throw new java.util.concurrent.CancellationException("服务器正在关闭");
                 }
             } catch (ExecutionException e) {
                 throw e.getCause() instanceof Exception ex ? ex : e;
@@ -514,9 +533,9 @@ final class SyncRun {
     }
 
     String progress() {
-        return phase + ": regions " + regionsScanned.get() + "/" + regionsTotal.get() + " (" + regionsChanged.get()
-                + " changed), chunks touched " + chunksTouched.get() + ", converted " + chunksConverted.get()
-                + ", written " + chunksWritten.get() + ", patched live " + chunksPatched.get() + ", queued "
-                + outstanding.get() + ", errors " + stats.failedChunks.get();
+        return phase + "：区域文件 " + regionsScanned.get() + "/" + regionsTotal.get() + "（" + regionsChanged.get()
+                + " 个有变化），涉及区块 " + chunksTouched.get() + "，转换 " + chunksConverted.get()
+                + "，写盘 " + chunksWritten.get() + "，在线修补 " + chunksPatched.get() + "，排队 "
+                + outstanding.get() + "，错误 " + stats.failedChunks.get();
     }
 }

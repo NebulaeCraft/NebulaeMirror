@@ -89,7 +89,7 @@ public final class ItemDowngrade {
         String id = item.getString("id");
         Legacy l = byId.get(id);
         if (l == null) {
-            warnings.add("item " + id + " has no 1.12 form and was left out");
+            warnings.add("物品 " + id + " 在 1.12 中没有对应形式，已略去");
             return null;
         }
         CompoundTag out = new CompoundTag();
@@ -119,7 +119,7 @@ public final class ItemDowngrade {
         dropped.removeAll(KEPT);
         dropped.removeIf(k -> k.startsWith("!"));
         if (!dropped.isEmpty()) {
-            warnings.add("item " + id + ": dropped " + dropped);
+            warnings.add("物品 " + id + "：丢弃了 " + dropped);
         }
         if (!tag.isEmpty()) {
             out.put("tag", tag);
@@ -137,7 +137,7 @@ public final class ItemDowngrade {
             String path = e.startsWith("minecraft:") ? e.substring(10) : e;
             Integer n = ENCHANTMENTS.get(path);
             if (n == null) {
-                warnings.add("enchantment " + e + " has no 1.12 id and was left out");
+                warnings.add("附魔 " + e + " 在 1.12 中没有对应 ID，已略去");
                 continue;
             }
             CompoundTag one = new CompoundTag();

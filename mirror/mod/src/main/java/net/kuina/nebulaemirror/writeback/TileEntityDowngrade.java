@@ -110,7 +110,7 @@ public final class TileEntityDowngrade {
         String n = legacy.name();
         CompoundTag data = be == null ? new CompoundTag() : be;
         if (REFUSED.contains(n)) {
-            throw new Unsupported(n + " is not written back (command/structure block)");
+            throw new Unsupported(n + " 不会回写（命令方块/结构方块）");
         }
         CompoundTag te = new CompoundTag();
         switch (n) {
@@ -124,7 +124,7 @@ public final class TileEntityDowngrade {
                 String potted = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
                 Object[] p = POTTED.get(potted);
                 if (p == null || !(state.getBlock() instanceof FlowerPotBlock)) {
-                    throw new Unsupported(potted + " has no 1.12 flower pot content");
+                    throw new Unsupported(potted + " 在 1.12 花盆中没有对应内容");
                 }
                 te.putString("id", "minecraft:flower_pot");
                 te.putString("Item", (String) p[0]);
@@ -203,15 +203,15 @@ public final class TileEntityDowngrade {
             te.putString("Text" + (i + 1), line.isEmpty() ? "\"\"" : line);
         }
         if (!"black".equals(front.getString("color")) && front.contains("color")) {
-            warnings.add("sign text colour " + front.getString("color") + " is not kept (1.12 signs are black)");
+            warnings.add("告示牌文字颜色 " + front.getString("color") + " 不会保留（1.12 告示牌只有黑色）");
         }
         if (front.getBoolean("has_glowing_text")) {
-            warnings.add("glowing sign text is not kept");
+            warnings.add("发光告示牌文字不会保留");
         }
         for (Tag t : data.getCompound("back_text").getList("messages", Tag.TAG_STRING)) {
             String s = t.getAsString();
             if (!s.isEmpty() && !s.equals("\"\"") && !s.equals("{\"text\":\"\"}")) {
-                warnings.add("sign back text is not kept (1.12 signs have one side)");
+                warnings.add("告示牌背面文字不会保留（1.12 告示牌只有一面）");
                 break;
             }
         }
@@ -228,7 +228,7 @@ public final class TileEntityDowngrade {
             String code = PATTERNS.get(p.getString("pattern"));
             DyeColor c = DyeColor.byName(p.getString("color"), null);
             if (code == null || c == null) {
-                warnings.add("banner pattern " + p.getString("pattern") + " has no 1.12 form and was left out");
+                warnings.add("旗帜图案 " + p.getString("pattern") + " 在 1.12 中没有对应形式，已略去");
                 continue;
             }
             CompoundTag old = new CompoundTag();
@@ -244,7 +244,7 @@ public final class TileEntityDowngrade {
         SkullBlock.Type type = ((AbstractSkullBlock) state.getBlock()).getType();
         Integer n = SKULLS.get(type);
         if (n == null) {
-            throw new Unsupported(type + " heads do not exist in 1.12");
+            throw new Unsupported("1.12 中没有 " + type + " 头颅");
         }
         te.putString("id", "minecraft:skull");
         te.putByte("SkullType", (byte) (int) n);
@@ -294,7 +294,7 @@ public final class TileEntityDowngrade {
             te.put("SpawnData", spawn);
         }
         if (data.contains("SpawnPotentials")) {
-            warnings.add("spawner SpawnPotentials are not kept");
+            warnings.add("刷怪笼的 SpawnPotentials 不会保留");
         }
     }
 }

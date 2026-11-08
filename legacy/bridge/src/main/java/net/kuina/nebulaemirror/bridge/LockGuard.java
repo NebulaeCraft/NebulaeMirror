@@ -36,8 +36,8 @@ public final class LockGuard {
             return false;
         }
         if (player != null) {
-            player.sendStatusMessage(new TextComponentString(TextFormatting.RED + "Zone " + l.zone
-                    + " is being edited in the mirror (" + l.owner + ")"), true);
+            player.sendStatusMessage(new TextComponentString(TextFormatting.RED + "区域 " + l.zone
+                    + " 正在镜像服中编辑（" + l.owner + "）"), true);
         }
         return true;
     }

@@ -192,22 +192,22 @@ public final class ZoneManager {
      */
     public String checkout(String name, BoundingBox box, String owner, String ownerUuid, Consumer<String> done) {
         if (!NAME.matcher(name).matches()) {
-            return "zone names are 1-32 characters of a-z, 0-9, _ and -";
+            return "区域名只能由 1-32 个 a-z、0-9、_ 和 - 组成";
         }
         if (active.containsKey(name) || pending.containsKey(name)) {
-            return "zone " + name + " already exists";
+            return "区域 " + name + " 已存在";
         }
         if (ZoneSnapshot.volume(box) > MAX_VOLUME) {
-            return "zone is " + ZoneSnapshot.volume(box) + " blocks; at most " + MAX_VOLUME + " (256^3)";
+            return "区域有 " + ZoneSnapshot.volume(box) + " 个方块，最多只能 " + MAX_VOLUME + "（256³）";
         }
         for (Zone z : active.values()) {
             if (z.box().intersects(box)) {
-                return "overlaps zone " + z;
+                return "与区域 " + z + " 重叠";
             }
         }
         for (Zone z : pending.values()) {
             if (z.box().intersects(box)) {
-                return "overlaps zone " + z.name + " (checkout in progress)";
+                return "与区域 " + z.name + " 重叠（该区域正在签出）";
             }
         }
         Zone z = new Zone();
@@ -219,7 +219,7 @@ public final class ZoneManager {
         pending.put(name, z);
         BridgeClient bridge = bridge();
         if (bridge == null) {
-            refreshAndSnapshot(z, " (origin NOT locked: no bridge configured)", done);
+            refreshAndSnapshot(z, "（未配置桥接，原服没有锁定）", done);
             return null;
         }
         JsonObject req = new JsonObject();
@@ -230,11 +230,11 @@ public final class ZoneManager {
         bridge.post("/v1/lock", req).whenComplete((r, err) -> server.execute(() -> {
             if (err != null) {
                 pending.remove(name);
-                done.accept("checkout of " + name + " failed: cannot lock it at the origin: " + BridgeClient.reason(err));
+                done.accept("签出 " + name + " 失败：无法在原服锁定：" + BridgeClient.reason(err));
                 return;
             }
             z.locked = true;
-            refreshAndSnapshot(z, "; locked at the origin", done);
+            refreshAndSnapshot(z, "；已在原服锁定", done);
         }));
         return null;
     }
@@ -244,26 +244,26 @@ public final class ZoneManager {
         if (sync == null || !sync.ready()) {
             // No sync configured (development): the mirror's current content is taken as the origin's.
             z.refreshed = false;
-            done.accept(finishCheckout(z) + note + " (mirror NOT refreshed from the origin: sync is off)");
+            done.accept(finishCheckout(z) + note + "（同步未开启，镜像没有从原服刷新）");
             return;
         }
         String why = sync.refresh(z.chunks(), !sync.config().pullCommand.isEmpty(), outcome -> {
             if (!outcome.ok()) {
-                failCheckout(z, done, "while refreshing from the origin: " + outcome.message());
+                failCheckout(z, done, "从原服刷新时出错：" + outcome.message());
                 return;
             }
             z.refreshed = true;
             done.accept(finishCheckout(z) + note);
         });
         if (why != null) {
-            failCheckout(z, done, "cannot refresh the zone from the origin now: " + why);
+            failCheckout(z, done, "现在无法从原服刷新该区域：" + why);
         }
     }
 
     private void failCheckout(Zone z, Consumer<String> done, String why) {
         pending.remove(z.name);
         unlockQuietly(z);
-        done.accept("checkout of " + z.name + " failed " + why);
+        done.accept("签出 " + z.name + " 失败，" + why);
     }
 
     /** Snapshot + activate (server thread). */
@@ -277,11 +277,11 @@ public final class ZoneManager {
             active.put(z.name, z);
             NebulaeMirror.LOG.info("Zones: checked out {} for {} ({} blocks, snapshot in {} ms)", z, z.owner,
                     ZoneSnapshot.volume(z.box()), System.currentTimeMillis() - t0);
-            return "Zone " + z + " checked out: edit it, then /nebulaemirror zone lint " + z.name;
+            return "区域 " + z + " 已签出：编辑完成后执行 /nebulaemirror zone lint " + z.name;
         } catch (IOException | RuntimeException e) {
             NebulaeMirror.LOG.error("Zones: checkout of {} failed", z.name, e);
             unlockQuietly(z);
-            return "checkout of " + z.name + " failed: " + e;
+            return "签出 " + z.name + " 失败：" + e;
         } finally {
             pending.remove(z.name);
         }
@@ -327,18 +327,18 @@ public final class ZoneManager {
     public String submit(Zone z, boolean force, Consumer<String> done) throws IOException {
         BridgeClient bridge = bridge();
         if (bridge == null) {
-            return "no bridge configured (\"bridge\" in config/nebulaemirror-sync.json): copy patch.nbt from "
-                    + "/nebulaemirror zone diff to the origin by hand";
+            return "未配置桥接（config/nebulaemirror-sync.json 中的 \"bridge\"）：请把 /nebulaemirror zone diff "
+                    + "生成的 patch.nbt 手动复制到原服";
         }
         if (z.busy) {
-            return "zone " + z.name + " is already being submitted or abandoned";
+            return "区域 " + z.name + " 已经在提交或放弃中";
         }
         PatchBuilder.Result r = diff(z);
         if (r.errorCount() > 0) {
-            return "zone " + z.name + " has " + r.errorCount() + " lint errors; see /nebulaemirror zone lint " + z.name;
+            return "区域 " + z.name + " 有 " + r.errorCount() + " 个检查错误，详见 /nebulaemirror zone lint " + z.name;
         }
         if (r.entries.isEmpty()) {
-            return "nothing to write back in " + z.name + " (abandon it to release it)";
+            return "区域 " + z.name + " 没有需要回写的改动（要释放它请用 abandon）";
         }
         CompoundTag patch = PatchBuilder.toNbt(z.name, z.box(), r.entries);
         PatchBuilder.writePatch(dir(z.name).resolve("patch.nbt"), patch);
@@ -346,12 +346,12 @@ public final class ZoneManager {
         NbtIo.writeCompressed(patch, bytes);
         z.busy = true;
         List<PatchBuilder.Entry> sent = List.copyOf(r.entries);
-        String warn = r.warningCount() > 0 ? " (" + r.warningCount() + " lint warnings)" : "";
+        String warn = r.warningCount() > 0 ? "（" + r.warningCount() + " 个检查警告）" : "";
         bridge.post("/v1/submit?zone=" + z.name + (force ? "&force=true" : ""), bytes.toByteArray())
                 .whenComplete((resp, err) -> server.execute(() -> {
                     if (err != null) {
                         z.busy = false;
-                        done.accept("submit of " + z.name + " failed: " + BridgeClient.reason(err));
+                        done.accept("提交 " + z.name + " 失败：" + BridgeClient.reason(err));
                         return;
                     }
                     String job = resp.get("job").getAsString();
@@ -361,8 +361,8 @@ public final class ZoneManager {
                     } catch (IOException e) {
                         NebulaeMirror.LOG.warn("Zones: cannot save {}: {}", z.name, e.toString());
                     }
-                    done.accept("Submitted " + sent.size() + " blocks of " + z.name + warn + " as origin job " + job
-                            + "; waiting for it...");
+                    done.accept("已提交 " + z.name + " 的 " + sent.size() + " 个方块" + warn + "，原服任务 " + job
+                            + "，等待执行……");
                     poll(z, bridge, job, sent, done, 0);
                 }));
         return null;
@@ -373,8 +373,8 @@ public final class ZoneManager {
             if (err != null) {
                 if (errors >= 30) {
                     z.busy = false;
-                    done.accept("lost contact with origin job " + job + ": " + BridgeClient.reason(err)
-                            + " (check /mirrorbridge status there, then submit or abandon again)");
+                    done.accept("与原服任务 " + job + " 失去联系：" + BridgeClient.reason(err)
+                            + "（请在原服查看 /mirrorbridge status，然后重新提交或放弃）");
                 } else {
                     poll(z, bridge, job, sent, done, errors + 1);
                 }
@@ -393,17 +393,17 @@ public final class ZoneManager {
                              Consumer<String> done) {
         if (!phase.equals("done")) {
             z.busy = false;
-            StringBuilder sb = new StringBuilder("origin job " + job + " " + phase);
+            StringBuilder sb = new StringBuilder("原服任务 " + job + " " + phaseLabel(phase));
             if (rep.has("error")) {
-                sb.append(": ").append(rep.get("error").getAsString());
+                sb.append("：").append(rep.get("error").getAsString());
             }
             for (JsonElement c : rep.getAsJsonArray("conflictSamples")) {
                 sb.append("\n  ").append(c.getAsString());
             }
-            sb.append("\nThe zone stays checked out and locked. ");
+            sb.append("\n区域仍保持签出和锁定状态。");
             sb.append(rep.get("conflicts").getAsInt() > 0
-                    ? "To overwrite the origin's changes: /nebulaemirror zone submit " + z.name + " force"
-                    : "Fix the cause, then submit again.");
+                    ? "要覆盖原服上的改动：/nebulaemirror zone submit " + z.name + " force"
+                    : "请解决问题后重新提交。");
             done.accept(sb.toString());
             return;
         }
@@ -411,12 +411,12 @@ public final class ZoneManager {
         z.locked = false;
         active.remove(z.name);
         pending.put(z.name, z); // keeps name and area reserved until the round trip is checked
-        String applied = "Origin job " + job + " applied " + rep.get("changed").getAsInt() + " blocks"
-                + (rep.get("verifyMismatches").getAsInt() > 0 ? ", " + rep.get("verifyMismatches").getAsInt()
-                + " NOT as sent on the origin's read-back" : "");
+        String applied = "原服任务 " + job + " 已写入 " + rep.get("changed").getAsInt() + " 个方块"
+                + (rep.get("verifyMismatches").getAsInt() > 0 ? "，原服回读时有 " + rep.get("verifyMismatches").getAsInt()
+                + " 个与发送的不一致" : "");
         SyncService sync = SyncService.get();
         if (sync == null || !sync.ready()) {
-            done.accept(close(z, applied + "; no round-trip check (sync is off)", null));
+            done.accept(close(z, applied + "；同步未开启，未做往返校验", null));
             return;
         }
         verifyWhenPossible(z, sync, sent, applied, done, 0);
@@ -427,21 +427,21 @@ public final class ZoneManager {
                                     Consumer<String> done, int attempt) {
         String why = sync.refresh(z.chunks(), !sync.config().pullCommand.isEmpty(), outcome -> {
             if (!outcome.ok()) {
-                done.accept(close(z, applied + "; round-trip check failed to refresh: " + outcome.message(), null));
+                done.accept(close(z, applied + "；往返校验刷新失败：" + outcome.message(), null));
                 return;
             }
             JsonObject v = verify(sent);
             int bad = v.get("mismatches").getAsInt();
-            done.accept(close(z, applied + "; round trip: " + (bad == 0
-                    ? "all " + sent.size() + " blocks came back from the origin as sent"
-                    : bad + " of " + sent.size() + " blocks differ, see verify.json"), v));
+            done.accept(close(z, applied + "；往返校验：" + (bad == 0
+                    ? "全部 " + sent.size() + " 个方块从原服回来时与发送的一致"
+                    : sent.size() + " 个方块中有 " + bad + " 个不一致，详见 verify.json"), v));
         });
         if (why != null) {
             if (attempt < 60) {
                 poller.schedule(() -> server.execute(() -> verifyWhenPossible(z, sync, sent, applied, done, attempt + 1)),
                         5, TimeUnit.SECONDS);
             } else {
-                done.accept(close(z, applied + "; no round-trip check: " + why, null));
+                done.accept(close(z, applied + "；未做往返校验：" + why, null));
             }
         }
     }
@@ -490,7 +490,7 @@ public final class ZoneManager {
             Files.createDirectories(to.getParent());
             Files.move(dir(z.name), to);
             NebulaeMirror.LOG.info("Zones: {} closed: {} ({})", z.name, message, to);
-            return message + " (files: " + to + ")";
+            return message + "（文件：" + to + "）";
         } catch (IOException e) {
             NebulaeMirror.LOG.warn("Zones: cannot archive {}: {}", z.name, e.toString());
             return message;
@@ -505,21 +505,32 @@ public final class ZoneManager {
      */
     public String abandon(Zone z, Consumer<String> done) throws IOException {
         if (z.busy) {
-            return "zone " + z.name + " is being submitted; wait for the outcome";
+            return "区域 " + z.name + " 正在提交，请等待结果";
         }
         unlockQuietly(z);
         active.remove(z.name);
         deleteDir(dir(z.name));
         SyncService sync = SyncService.get();
         if (sync == null || !sync.ready()) {
-            return "Zone " + z.name + " abandoned; sync is off, so mirror edits stay until the next refresh";
+            return "区域 " + z.name + " 已放弃；同步未开启，镜像上的改动会保留到下次刷新";
         }
         String why = sync.refresh(z.chunks(), false, o -> done.accept(o.ok()
-                ? "Zone " + z.name + " abandoned; the mirror shows the origin again"
-                : "Zone " + z.name + " abandoned, but restoring the origin's content failed: " + o.message()
-                + " (use /nebulaemirror sync refresh " + String.join(" ", ints2(z.chunks())) + ")"));
-        return why == null ? null : "Zone " + z.name + " abandoned; restoring its content later: " + why
-                + " (use /nebulaemirror sync refresh " + String.join(" ", ints2(z.chunks())) + ")";
+                ? "区域 " + z.name + " 已放弃，镜像已恢复为原服内容"
+                : "区域 " + z.name + " 已放弃，但恢复原服内容失败：" + o.message()
+                + "（请执行 /nebulaemirror sync refresh " + String.join(" ", ints2(z.chunks())) + "）"));
+        return why == null ? null : "区域 " + z.name + " 已放弃，稍后再恢复内容：" + why
+                + "（请执行 /nebulaemirror sync refresh " + String.join(" ", ints2(z.chunks())) + "）";
+    }
+
+    /** Bridge job phase (see the bridge's Job) for in-game messages. */
+    private static String phaseLabel(String phase) {
+        return switch (phase) {
+            case "refused" -> "被拒绝";
+            case "failed" -> "失败";
+            case "cancelled" -> "已取消";
+            case "interrupted" -> "被中断";
+            default -> phase;
+        };
     }
 
     private static JsonArray ints(int[] a) {
@@ -556,8 +567,7 @@ public final class ZoneManager {
             SyncService sync = SyncService.get();
             String source = sync == null ? "" : sync.config().source;
             if (source == null || source.isBlank()) {
-                throw new IOException("set \"source\" in config/nebulaemirror-sync.json: write-back needs the "
-                        + "origin's level.dat");
+                throw new IOException("请在 config/nebulaemirror-sync.json 中设置 \"source\"：回写需要原服的 level.dat");
             }
             Map<String, String> problems = new TreeMap<>();
             t = ReverseTable.build(Path.of(source).resolve("level.dat"), p -> problems.put(p, p));
