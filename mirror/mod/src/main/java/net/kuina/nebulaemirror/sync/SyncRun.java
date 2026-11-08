@@ -61,6 +61,8 @@ final class SyncRun {
     }
 
     final Mode mode;
+    /** REFRESH after a pull (zone checkout fetches the latest origin state first). */
+    private final boolean pullFirst;
     private final MinecraftServer server;
     private final ServerLevel level;
     private final SyncConfig config;
@@ -102,8 +104,9 @@ final class SyncRun {
     private final AtomicInteger outstanding = new AtomicInteger();
     private final Semaphore permits;
 
-    SyncRun(Mode mode, MinecraftServer server, SyncConfig config, int[] force) {
+    SyncRun(Mode mode, MinecraftServer server, SyncConfig config, int[] force, boolean pullFirst) {
         this.mode = mode;
+        this.pullFirst = pullFirst;
         this.server = server;
         this.level = server.overworld();
         this.config = config;
@@ -117,7 +120,7 @@ final class SyncRun {
 
     JsonObject run() throws Exception {
         Path source = Path.of(config.source);
-        if (mode == Mode.PULL_AND_APPLY) {
+        if (mode == Mode.PULL_AND_APPLY || pullFirst) {
             pull();
         }
         if (cancelled) {

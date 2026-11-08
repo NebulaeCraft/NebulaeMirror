@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh the mirror's local copy of the 1.12 origin world (stdlib only; Linux, macOS and Windows).
+r"""Refresh the mirror's local copy of the 1.12 origin world (stdlib only; Linux, macOS and Windows).
 
     python3 -I ops/sync/pull.py --config pull.json
 
@@ -44,10 +44,22 @@ RSYNC_FILTER = ['--include=/level.dat', '--include=/region/', '--include=/region
 
 
 def log(msg):
+    stamp = time.strftime('%H:%M:%S ')
     try:
-        print(time.strftime('%H:%M:%S ') + msg, flush=True)
+        for line in (msg.splitlines() or ['']):
+            print(stamp + line, flush=True)
     except (OSError, ValueError):
         pass  # nobody is reading any more (the server stopped); keep going so save-on still happens
+
+
+def _decode(raw):
+    """Output of a copy tool: UTF-8 if it is valid UTF-8, else the console code page tools use when piped
+    (OEM on Windows, e.g. GBK on Chinese systems; the locale elsewhere)."""
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError:
+        import locale
+        return raw.decode('oem' if os.name == 'nt' else locale.getpreferredencoding(False), 'replace')
 
 
 def _lock(f):
@@ -191,9 +203,9 @@ def _pull_locked(cfg, base, dest, dry_run):
         for cmd, ok in commands:
             name = os.path.basename(cmd[0])
             log('copy: ' + ' '.join(cmd))
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                  errors='replace', timeout=max(1.0, timeout - (time.time() - t0)))
-            for line in proc.stdout.splitlines():
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                  timeout=max(1.0, timeout - (time.time() - t0)))
+            for line in _decode(proc.stdout).splitlines():
                 if line.strip():
                     log(name + ': ' + line.rstrip())
             result.setdefault('copyExit', []).append(proc.returncode)
@@ -223,6 +235,10 @@ def _pull_locked(cfg, base, dest, dry_run):
 
 
 def main(argv=None):
+    # The mirror mod reads this output as UTF-8; Windows would otherwise write the ANSI code page (GBK...).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--config', required=True, help='pull config JSON (see the module docstring)')
     ap.add_argument('--dry-run', action='store_true', help='list what would be copied (rsync --dry-run / robocopy /L); save-off/flush/on still happen')

@@ -12,7 +12,10 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] Importer: full offline import (DFU + modded block substitution), see [docs/importer.md](docs/importer.md)
 - [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
 - [x] P2 online incremental sync: pull (RCON `save-off`/`save-all flush` + rsync + `save-on`), timestamp + content-hash change detection, IO replacement of unloaded chunks / block diff of loaded chunks, in-mod timer + launchd keep-alive, see [docs/sync.md](docs/sync.md) (still to do: the first test against the real origin)
-- [ ] Bridge mod `legacy/bridge/` (zone lock, patch apply/rollback)
+- [ ] P3 write-back, see [docs/writeback.md](docs/writeback.md):
+  - [x] step 1: reverse mapping (vanilla via DataFixer, mods via reverse.json), TileEntity/item downgrade, zones (`/nebulaemirror zone checkout|lint|diff|abandon`), patch file
+  - [x] step 2: bridge mod `legacy/bridge/` (apply patch quietly, undo file, rollback, conflict check), see [docs/bridge.md](docs/bridge.md)
+  - [ ] step 3: zone lock at the origin, submit over HTTP, round-trip check
 
 ## Layout
 
@@ -20,7 +23,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 |---|---|
 | `data/` | Origin server snapshots: world zip, config, mods (gitignored) |
 | `legacy/dumper/` | Forge 1.12.2 client mod: exports block appearance data |
-| `legacy/bridge/` | Forge 1.12.2 server mod (to do) |
+| `legacy/bridge/` | Forge 1.12.2 server mod: applies write-back patches (undo, rollback) |
 | `mirror/mod/` | Fabric 1.21.1 mod (Gradle 9.8 + Loom, Mojang mappings) |
 | `mirror/generator/` | dump → mirror definition generator (Python, stdlib only) |
 | `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |

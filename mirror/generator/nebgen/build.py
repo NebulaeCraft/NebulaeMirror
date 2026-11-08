@@ -5,6 +5,7 @@ Output layout (`--out`):
   mirror/blocks.json      block definitions the mirror mod registers (properties, per-state physics, items, names)
   mirror/forward.json     1.12 (name, meta) -> 1.21 block + props        (importer, origin -> mirror)
   mirror/reverse.json     1.21 block + stored props -> 1.12 (name, meta)  (submit, mirror -> origin)
+  mirror/vanilla_metas.json  vanilla 1.12 block -> canonical metas + state (submit; DFU covers the rest)
   mirror/source.json      provenance: dump manifest, mod versions, generator schema
   assets/<ns>/blockstates/<path>.json         variants -> nebulaemirror:mesh/<hash>
   assets/nebulaemirror/meshes/<hash>.json     baked quads (loaded by the mod's model loading plugin)
@@ -63,6 +64,7 @@ class Generator:
         self.shapes = []
         self._shape_index = {}
         self.blocks = []
+        self.vanilla_metas = {}
         self.forward = {}
         self.reverse = {}
         self._reverse_sources = {}
@@ -81,6 +83,7 @@ class Generator:
             name = block['name']
             ns = name.split(':')[0]
             if ns == 'minecraft':
+                self._vanilla_metas(block)
                 continue  # vanilla goes through DFU in the importer
             self.report.count('blocks.dumped')
             rule = self.rules.get(name, {})
@@ -657,6 +660,14 @@ class Generator:
 
     # ------------------------------------------------------------------ output
 
+    def _vanilla_metas(self, block):
+        """Canonical metas (getMetaFromState(getStateFromMeta(m)) == m) of a vanilla 1.12 block with its state:
+        write-back turns a 1.21 vanilla state into one of these (vanilla_metas.json)."""
+        metas = {str(m['meta']): m['state'] for m in block['metaTable']
+                 if m.get('roundTrip') == m['meta'] and 'state' in m}
+        if metas:
+            self.vanilla_metas[block['name']] = metas
+
     def _biome_map(self):
         """
         Modded 1.12 biome -> vanilla 1.12 biome name (DFU then upgrades it). Grass/foliage colour in 1.21 comes
@@ -728,6 +739,9 @@ class Generator:
         write_json(os.path.join(mirror, 'forward.json'), {
             'schema': SCHEMA, 'blocks': dict(sorted(self.forward.items()))}, pretty=False)
         write_json(os.path.join(mirror, 'biomes.json'), {'schema': SCHEMA, 'biomes': self._biome_map()})
+        write_json(os.path.join(mirror, 'vanilla_metas.json'), {
+            'schema': SCHEMA, 'blocks': dict(sorted(self.vanilla_metas.items()))}, pretty=False)
+        self.report.count('vanilla.blocks', len(self.vanilla_metas))
         self.report.count('blocks.generated', len(self.blocks))
         self.report.count('shapes', len(self.shapes))
         self.report.count('forward.blocks', len(self.forward))

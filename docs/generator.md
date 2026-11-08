@@ -18,6 +18,7 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
 | `mirror/blocks.json` | mirror mod | Every generated block: archetype, properties (kind/values/`stored`/`derived`/`legacy`), default state, per-state light/opacity/shape index, render layer, sound, emissive, tints, legacy-TE flag, item subtypes (with the state each places) and zh/en names. Shapes are deduplicated into the top-level `shapes` table |
 | `mirror/forward.json` | importer (origin → mirror) | `"ns:name" → {target, metas: {meta: {1.21 props}}}` |
 | `mirror/reverse.json` | submit (mirror → origin) | `"1.21 block" → {keys, map: {"k=v,...": [1.12 name, meta]}}`. `keys` holds only properties stored in the 1.12 meta; neighbour-derived properties (connections, stair shape) are ignored |
+| `mirror/vanilla_metas.json` | write-back | Vanilla 1.12 block → canonical metas with their 1.12 state, from the dump's meta table; the mod runs DataFixer over these to build its vanilla reverse table (see [writeback.md](writeback.md)) |
 | `mirror/source.json` | traceability | Dump version, versions of every mod, list of overrides used |
 | `assets/<ns>/blockstates/*.json` | client | Variants → `nebulaemirror:mesh/<hash>` |
 | `assets/nebulaemirror/meshes/<hash>.json` | client | Baked quads (block-space vertices, sprite-relative 0..16 UVs, `layer`, `cull`, `tint`, `shade`, `emissive`), deduplicated by content |

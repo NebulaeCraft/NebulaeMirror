@@ -97,7 +97,7 @@ public final class SyncService {
                 return t;
             });
             timer.scheduleWithFixedDelay(() -> {
-                String why = start(SyncRun.Mode.PULL_AND_APPLY, null, null);
+                String why = start(SyncRun.Mode.PULL_AND_APPLY, null, false, null);
                 if (why != null) {
                     NebulaeMirror.LOG.info("Sync: scheduled run skipped: {}", why);
                 }
@@ -107,11 +107,32 @@ public final class SyncService {
         return msg;
     }
 
+    /** How a run ended: ok = finished, not cancelled, no chunk errors. Delivered on the server thread. */
+    public record Outcome(boolean ok, String message, JsonObject report) {
+    }
+
+    /**
+     * Re-syncs an inclusive chunk range from the origin regardless of what was recorded (zone checkout and
+     * abandon). With {@code pull} the configured pull runs first. Returns null when started, otherwise why not.
+     */
+    public String refresh(int[] chunkRange, boolean pull, Consumer<Outcome> done) {
+        return start(SyncRun.Mode.REFRESH, chunkRange, pull, done);
+    }
+
+    /** True when sync is configured and has a baseline, i.e. a refresh can run. */
+    public boolean ready() {
+        return config.enabled() && new SyncState(server.getWorldPath(LevelResource.ROOT)).hasBaseline();
+    }
+
+    public SyncConfig config() {
+        return config;
+    }
+
     /**
      * Starts a run in the background. Returns null when started, otherwise why not.
-     * {@code force} (REFRESH only) is an inclusive chunk range; {@code notify} receives the outcome.
+     * {@code force} (REFRESH only) is an inclusive chunk range; {@code done} receives the outcome.
      */
-    synchronized String start(SyncRun.Mode mode, int[] force, Consumer<String> notify) {
+    synchronized String start(SyncRun.Mode mode, int[] force, boolean pullFirst, Consumer<Outcome> done) {
         SyncConfig c = config;
         if (!c.enabled()) {
             return "sync is off: set \"source\" in config/" + SyncConfig.FILE;
@@ -127,24 +148,25 @@ public final class SyncService {
             return "no sync baseline in " + state.root() + ": do the full import from the sync source, or run "
                     + "\"/nebulaemirror sync baseline\" if this world was imported from exactly the current source";
         }
-        SyncRun run = new SyncRun(mode, server, c, force);
+        SyncRun run = new SyncRun(mode, server, c, force, pullFirst);
         current = run;
         coordinator.execute(() -> {
-            String outcome;
+            Outcome outcome;
             try {
                 JsonObject report = run.run();
                 lastReport = report;
                 lastError = null;
                 writeReport(state, report);
-                outcome = summary(report);
-                NebulaeMirror.LOG.info("Sync: {}", outcome);
+                boolean ok = !run.cancelled && report.getAsJsonObject("converter").get("failedChunks").getAsLong() == 0;
+                outcome = new Outcome(ok, summary(report), report);
+                NebulaeMirror.LOG.info("Sync: {}", outcome.message());
             } catch (Throwable t) {
                 lastError = t.toString();
                 JsonObject report = run.report(Path.of(c.source));
                 report.addProperty("error", t.toString());
                 lastReport = report;
                 writeReport(state, report);
-                outcome = "sync " + mode.name().toLowerCase() + " failed: " + t;
+                outcome = new Outcome(false, "sync " + mode.name().toLowerCase() + " failed: " + t, report);
                 if (run.stopping) {
                     NebulaeMirror.LOG.info("Sync: interrupted by server stop; the next run redoes unrecorded chunks");
                 } else if (t instanceof IOException) {
@@ -155,9 +177,9 @@ public final class SyncService {
             } finally {
                 current = null;
             }
-            if (notify != null) {
-                String o = outcome;
-                server.execute(() -> notify.accept(o));
+            if (done != null) {
+                Outcome o = outcome;
+                server.execute(() -> done.accept(o));
             }
         });
         return null;

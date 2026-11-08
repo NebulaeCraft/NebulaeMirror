@@ -49,7 +49,7 @@ Mirror-side edits in chunks the origin later changes are overwritten. Edits in c
    | `maxQueuedChunks` | Maximum chunks converted but not yet applied (bounds memory) |
    | `checkpointChunks` | Save and record progress every this many chunks |
    | `regions` | `"x1,z1,x2,z2"`: sync only this region range (when only that range was imported; regions outside it are never synced) |
-   | `exclude` | Block boxes never touched (`y1`/`y2` optional; whole height if omitted). Fully covered chunks are skipped; partly covered chunks are loaded and only the uncovered blocks are synced. These chunks are not recorded, so they sync once the exclusion is removed |
+   | `exclude` | Block boxes never touched (checked-out zones, see [writeback.md](writeback.md), are excluded the same way, also from `refresh`) (`y1`/`y2` optional; whole height if omitted). Fully covered chunks are skipped; partly covered chunks are loaded and only the uncovered blocks are synced. These chunks are not recorded, so they sync once the exclusion is removed |
 
    After editing, run `/nebulaemirror sync reload` (no restart needed).
 5. **Keep the server running**: on macOS use [ops/launchd/net.kuina.nebulaemirror.server.plist](../ops/launchd/net.kuina.nebulaemirror.server.plist) (start it with [ops/server/run.sh](../ops/server/run.sh); it restarts after a crash but not after a normal `stop`). The sync timer is inside the mod, so launchd doesn't need a separate scheduled job.

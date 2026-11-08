@@ -154,6 +154,25 @@ class PullTest(unittest.TestCase):
         with open(self.robolog) as f:
             self.assertTrue(all('/L' in line.split() for line in f.read().splitlines()))
 
+    def test_copy_output_is_reemitted_as_utf8_without_warnings(self):
+        """The mod reads pull.py's output as UTF-8. (The GBK branch of _decode needs Windows to test.)"""
+        tool = os.path.join(self.dir, 'tool.sh')
+        with open(tool, 'w') as f:
+            f.write('#!/bin/sh\nprintf "\\346\\226\\207\\344\\273\\266: 1\\n"\nprintf "\\377\\376 bad\\n"\n')
+        os.chmod(tool, 0o755)
+        cfg_path = os.path.join(self.dir, 'pull.json')
+        with open(cfg_path, 'w') as f:
+            json.dump(self.config(copier='robocopy', robocopy=tool), f)
+        import subprocess
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pull.py')
+        out = subprocess.run([sys.executable, '-I', '-W', 'error', script, '--config', cfg_path],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        text = out.stdout.decode('utf-8')  # strict, like the mod
+        self.assertEqual(0, out.returncode, text)
+        self.assertIn('tool.sh: \u6587\u4ef6: 1', text)
+        self.assertIn(' bad', text, 'undecodable output is replaced, not fatal')
+        self.assertNotIn('Warning', text)
+
     def test_unknown_copier_is_rejected_before_save_off(self):
         with self.assertRaises(SystemExit):
             pull.pull(self.config(copier='scp'), self.dir)

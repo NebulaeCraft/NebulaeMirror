@@ -51,7 +51,7 @@ public final class SyncCommands {
             return reply(ctx, null);
         }
         CommandSourceStack src = ctx.getSource();
-        String why = s.start(mode, force, outcome -> src.sendSuccess(() -> Component.literal(outcome), true));
+        String why = s.start(mode, force, false, outcome -> src.sendSuccess(() -> Component.literal(outcome.message()), true));
         if (why != null) {
             src.sendFailure(Component.literal("Not started: " + why));
             return 0;
