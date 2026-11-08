@@ -10,7 +10,9 @@
     "ChunkHolderMixin"
   ],
   "client": [
-    "client.BlockEntityRenderDispatcherMixin"
+    "client.BlockEntityRenderDispatcherMixin",
+    "client.CreativeModeTabAccessor",
+    "client.CreativeModeTabsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

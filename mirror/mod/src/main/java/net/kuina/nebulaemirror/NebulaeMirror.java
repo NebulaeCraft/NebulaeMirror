@@ -19,6 +19,7 @@ import net.kuina.nebulaemirror.block.UnknownBlock;
 import net.kuina.nebulaemirror.data.MirrorData;
 import net.kuina.nebulaemirror.importer.ImportHook;
 import net.kuina.nebulaemirror.sync.SyncService;
+import net.kuina.nebulaemirror.tabs.CreativeTabSettings;
 import net.kuina.nebulaemirror.writeback.ZoneManager;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
@@ -59,6 +60,8 @@ public class NebulaeMirror implements ModInitializer {
     public static MirrorData DATA;
     /** Every block registered from blocks.json, in definition order. */
     public static final Map<Block, MirrorData.BlockDef> BLOCKS = new LinkedHashMap<>();
+    /** The creative tab of each source mod, by namespace, in tab order. */
+    public static final Map<String, CreativeModeTab> TABS = new LinkedHashMap<>();
     public static Block UNKNOWN;
     public static BlockEntityType<LegacyBlockEntity> LEGACY_BLOCK_ENTITY;
 
@@ -234,12 +237,23 @@ public class NebulaeMirror implements ModInitializer {
         for (Map.Entry<String, List<ItemStack>> e : byNamespace.entrySet()) {
             List<ItemStack> stacks = e.getValue();
             String ns = e.getKey();
+            // Visibility and icon come from the client's config (CreativeTabSettings). A hidden tab builds no
+            // tab contents, so vanilla does not display it, but its items stay in the creative search.
             CreativeModeTab tab = FabricItemGroup.builder()
                     .title(Component.literal("Mirror: " + ns.substring(0, 1).toUpperCase(Locale.ROOT) + ns.substring(1)))
-                    .icon(() -> stacks.get(0).copy())
-                    .displayItems((params, output) -> stacks.forEach(s -> output.accept(s.copy())))
+                    .icon(() -> {
+                        ItemStack icon = CreativeTabSettings.icon(ns);
+                        return icon != null ? icon : stacks.get(0).copy();
+                    })
+                    .displayItems((params, output) -> {
+                        CreativeModeTab.TabVisibility v = CreativeTabSettings.shown(ns)
+                                ? CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS
+                                : CreativeModeTab.TabVisibility.SEARCH_TAB_ONLY;
+                        stacks.forEach(s -> output.accept(s.copy(), v));
+                    })
                     .build();
             Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, id("tab_" + ns), tab);
+            TABS.put(ns, tab);
         }
     }
 
