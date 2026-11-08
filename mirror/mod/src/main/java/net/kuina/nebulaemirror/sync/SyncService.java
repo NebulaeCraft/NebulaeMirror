@@ -82,15 +82,18 @@ public final class SyncService {
         } catch (IOException | RuntimeException e) {
             NebulaeMirror.LOG.error("Sync: cannot read config/{}: {}", SyncConfig.FILE, e.toString());
             config = new SyncConfig();
+            net.kuina.nebulaemirror.chat.ChatSync.reconfigure(server, null);
             return "Cannot read config/" + SyncConfig.FILE + ": " + e;
         }
+        // Chat sync only needs the bridge, not the sync source.
+        String chat = net.kuina.nebulaemirror.chat.ChatSync.reconfigure(server, config);
         if (timer != null) {
             timer.shutdownNow();
             timer = null;
         }
         if (!config.enabled()) {
             NebulaeMirror.LOG.info("Sync: off (no \"source\" in config/{})", SyncConfig.FILE);
-            return "Sync is off: set \"source\" in config/" + SyncConfig.FILE;
+            return "Sync is off: set \"source\" in config/" + SyncConfig.FILE + ". " + chat;
         }
         String msg = "Sync source " + config.source + (config.intervalMinutes > 0
                 ? ", every " + config.intervalMinutes + " min" : ", on command only");
@@ -108,7 +111,7 @@ public final class SyncService {
             }, 1, config.intervalMinutes, TimeUnit.MINUTES);
         }
         NebulaeMirror.LOG.info("Sync: {}", msg);
-        return msg;
+        return msg + ". " + chat;
     }
 
     /** How a run ended: ok = finished, not cancelled, no chunk errors. Delivered on the server thread. */

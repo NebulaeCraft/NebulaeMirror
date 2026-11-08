@@ -28,13 +28,13 @@ import java.io.IOException;
  * Server-side half of the NebulaeMirror write-back: applies patches made by the 1.21.1 mirror
  * ({@code /nebulaemirror zone diff}) to the overworld, with an undo file per job and rollback.
  * Zones the mirror checks out are locked here ({@link LockGuard}, {@link WorldEditLock}); the mirror talks to
- * {@link BridgeHttp}. See docs/bridge.md.
+ * {@link BridgeHttp}, which also relays chat both ways ({@link ChatRelay}). See docs/bridge.md and docs/chat.md.
  */
 @Mod(modid = MirrorBridge.MODID, name = "NebulaeMirror Bridge", version = MirrorBridge.VERSION,
         serverSideOnly = true, acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
 public final class MirrorBridge {
     public static final String MODID = "mirrorbridge";
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
     public static final Logger LOG = LogManager.getLogger("MirrorBridge");
 
     /** Permission nodes (Forge PermissionAPI; SpongeForge hands them to LuckPerms). Default: operators. */
@@ -46,6 +46,8 @@ public final class MirrorBridge {
     public static final String PERM_BYPASS = "nebulaemirror.bridge.bypasslock";
 
     static volatile ZoneLocks locks;
+    /** Chat sync with the mirror (docs/chat.md). */
+    static final ChatRelay chat = new ChatRelay();
     private static BridgeHttp http;
 
     static BridgeStore store;
@@ -54,6 +56,7 @@ public final class MirrorBridge {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent e) {
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(chat);
     }
 
     @Mod.EventHandler

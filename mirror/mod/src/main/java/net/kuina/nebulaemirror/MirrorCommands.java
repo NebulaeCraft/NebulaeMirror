@@ -31,6 +31,8 @@ import java.util.TreeMap;
  * Loads the chunk range and tallies blocks per namespace and per block id (non-air), writing
  * nebulaemirror-stats.json into the world directory — used to verify an import against the 1.12 scan.
  * /nebulaemirror sync ...: see {@link SyncCommands}; /nebulaemirror zone ...: see {@link ZoneCommands}.
+ * /nebulaemirror chat status: chat sync with the origin (docs/chat.md; configured with the sync config, applied by
+ * sync reload).
  */
 public final class MirrorCommands {
     private MirrorCommands() {
@@ -41,6 +43,13 @@ public final class MirrorCommands {
                 Commands.literal("nebulaemirror")
                         .then(SyncCommands.tree())
                         .then(ZoneCommands.tree())
+                        .then(Commands.literal("chat").then(Commands.literal("status")
+                                .requires(MirrorPermissions.require(MirrorPermissions.SYNC_STATUS, 2))
+                                .executes(ctx -> {
+                                    String m = net.kuina.nebulaemirror.chat.ChatSync.status();
+                                    ctx.getSource().sendSuccess(() -> Component.literal(m), false);
+                                    return 1;
+                                })))
                         .then(Commands.literal("stats").requires(MirrorPermissions.require(MirrorPermissions.STATS, 2))
                                 .then(Commands.argument("x1", IntegerArgumentType.integer())
                                         .then(Commands.argument("z1", IntegerArgumentType.integer())

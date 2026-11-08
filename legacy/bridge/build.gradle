@@ -11,7 +11,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle'
 
 // Keep in sync with MirrorBridge.VERSION
-version = '0.2.0'
+version = '0.3.0'
 group = 'net.kuina.nebulaemirror'
 archivesBaseName = 'MirrorBridge-1.12.2'
 

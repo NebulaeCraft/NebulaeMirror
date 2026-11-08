@@ -58,6 +58,7 @@ Use zones (or `exclude`) for areas that must not be overwritten.
    | `exclude` | Block boxes never touched (checked-out zones, see [writeback.md](writeback.md), are excluded the same way, also from `refresh`) (`y1`/`y2` optional; whole height if omitted). Fully covered chunks are skipped; partly covered chunks are loaded and only the uncovered blocks are synced. These chunks are not recorded, so they sync once the exclusion is removed |
    | `protectOutsideZones` | `true`: players and WorldEdit may only change blocks inside zones they checked out |
    | `bridge` | `{"url", "token"}` of the origin's bridge mod for zone lock and submit (see [writeback.md](writeback.md)); empty url = no lock, no submit |
+   | `chat` | Chat, join and leave sync with the origin through the bridge; off by default. See [chat.md](chat.md) |
 
    After editing, run `/nebulaemirror sync reload` (no restart needed).
 5. **Keep the server running**: on macOS use [ops/launchd/net.kuina.nebulaemirror.server.plist](../ops/launchd/net.kuina.nebulaemirror.server.plist) (start it with [ops/server/run.sh](../ops/server/run.sh); it restarts after a crash but not after a normal `stop`). The sync timer is inside the mod, so launchd doesn't need a separate scheduled job.

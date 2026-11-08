@@ -1,11 +1,12 @@
 # Bridge mod (origin 1.12.2, P3 steps 2 and 3)
 
-`legacy/bridge/` is a server-side Forge 1.12.2 mod (`mirrorbridge`, works with SpongeForge; clients do not need it). It does four things:
+`legacy/bridge/` is a server-side Forge 1.12.2 mod (`mirrorbridge`, works with SpongeForge; clients do not need it). It does five things:
 
 - locks the zones the mirror checks out, so nothing changes them at the origin meanwhile;
 - offers a local HTTP API the mirror uses to lock, unlock and submit;
 - applies the write-back patches (see [writeback.md](writeback.md)) to the overworld;
 - keeps an undo file per job and can roll a job back.
+- relays chat, joins and leaves between the two servers (0.3.0; see [chat.md](chat.md)).
 
 ## Build and install
 
@@ -13,7 +14,7 @@
 cd legacy/bridge && JAVA_HOME=$(/usr/libexec/java_home -v 1.8) ./gradlew build
 ```
 
-Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-0.2.0.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
+Put `legacy/bridge/build/libs/MirrorBridge-1.12.2-0.3.0.jar` into the origin's `mods/` and restart. Files live in `world/nebulaemirror-bridge/`:
 
 | Path | Contents |
 |---|---|
@@ -74,6 +75,8 @@ The mirror uses it; nothing else needs to. Every request carries `X-Mirror-Token
 | `POST /v1/unlock` `{zone}` | `{unlocked: true/false}` |
 | `POST /v1/submit?zone=Z[&force=true]`, body: patch | `{job}`. The zone must be locked here (unless `force`) and every entry must lie inside the lock |
 | `GET /v1/job?id=J` | the job report (job.json) |
+| `GET /v1/chat?boot=B&since=S&wait=W` | origin chat, joins and leaves after `S` (long poll, at most `W` ≤ 30 s): `{boot, seq, events}`. `since=-1`: only the current `seq`. A different `boot` (the bridge restarted): everything buffered since this start |
+| `POST /v1/chat/say` `{text}` | show mirror text (already formatted, `§` codes, at most 1024 characters) to every player |
 
 ## How a job runs
 

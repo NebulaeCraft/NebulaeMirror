@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
  *   POST /v1/unlock   {zone}
  *   POST /v1/submit?zone=Z[&force=true]  body: patch (gzip NBT) -> {job}
  *   GET  /v1/job?id=J                    job report (job.json)
+ *   GET  /v1/chat?boot=B&since=S&wait=W  origin chat/joins/leaves after S (long poll, W s at most; see ChatRelay)
+ *   POST /v1/chat/say {text}             show mirror text (formatted, § codes) to every player here
  * </pre>
  * A submit must lie inside its zone's lock; its job unlocks the zone when it is done.
  */
@@ -53,7 +55,7 @@ final class BridgeHttp {
 
     void start() throws IOException {
         http = HttpServer.create(new InetSocketAddress(BridgeConfig.httpHost, BridgeConfig.httpPort), 16);
-        pool = Executors.newFixedThreadPool(2, r -> {
+        pool = Executors.newFixedThreadPool(4, r -> {
             Thread t = new Thread(r, "MirrorBridge-HTTP");
             t.setDaemon(true);
             return t;
@@ -110,6 +112,20 @@ final class BridgeHttp {
             } else if (path.equals("/v1/job") && method.equals("GET")) {
                 String id = q.getOrDefault("id", "");
                 out = onMain(() -> job(id));
+            } else if (path.equals("/v1/chat") && method.equals("GET")) {
+                // Waits on this HTTP thread, not the server thread.
+                long since = parseLong(q.get("since"), -1);
+                long wait = Math.max(0, Math.min(30, parseLong(q.get("wait"), 0)));
+                out = MirrorBridge.chat.poll(q.getOrDefault("boot", ""), since, wait * 1000);
+            } else if (path.equals("/v1/chat/say") && method.equals("POST")) {
+                JsonObject in = json(ex);
+                String text = in.has("text") ? in.get("text").getAsString() : "";
+                if (text.isEmpty() || text.length() > ChatRelay.MAX_TEXT) {
+                    throw new HttpError(400, "text must be 1.." + ChatRelay.MAX_TEXT + " characters");
+                }
+                server.addScheduledTask(() -> ChatRelay.broadcast(server, text));
+                out = new JsonObject();
+                out.addProperty("ok", true);
             } else {
                 throw new HttpError(404, "no such endpoint: " + method + " " + path);
             }
@@ -241,6 +257,17 @@ final class BridgeHttp {
             throw new HttpError(404, "no job " + id);
         }
         return o;
+    }
+
+    private static long parseLong(String s, long fallback) throws HttpError {
+        if (s == null || s.isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            throw new HttpError(400, "not a number: " + s);
+        }
     }
 
     private static int[] ints(JsonElement e) {

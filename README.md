@@ -16,6 +16,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
   - [x] step 1: reverse mapping (vanilla via DataFixer, mods via reverse.json), TileEntity/item downgrade, zones (`/nebulaemirror zone checkout|lint|diff|abandon`), patch file
   - [x] step 2: bridge mod `legacy/bridge/` (apply patch quietly, undo file, rollback, conflict check), see [docs/bridge.md](docs/bridge.md)
   - [x] step 3: zone lock at the origin (Forge events + FAWE mask), local HTTP API with token, `zone submit` with round-trip check, LuckPerms permission nodes
+- [x] Chat sync: chat, joins and leaves both ways through the bridge, formats and switches in the mirror's sync config, see [docs/chat.md](docs/chat.md)
 
 ## Layout
 
@@ -23,7 +24,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 |---|---|
 | `data/` | Origin server snapshots: world zip, config, mods (gitignored) |
 | `legacy/dumper/` | Forge 1.12.2 client mod: exports block appearance data |
-| `legacy/bridge/` | Forge 1.12.2 server mod: applies write-back patches (undo, rollback) |
+| `legacy/bridge/` | Forge 1.12.2 server mod: applies write-back patches (undo, rollback), zone locks, chat relay |
 | `mirror/mod/` | Fabric 1.21.1 mod (Gradle 9.8 + Loom, Mojang mappings) |
 | `mirror/generator/` | dump → mirror definition generator (Python, stdlib only) |
 | `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |

@@ -109,6 +109,7 @@ public class NebulaeMirror implements ModInitializer {
         registerTabs();
         ImportHook.register();
         SyncService.register();
+        net.kuina.nebulaemirror.chat.ChatSync.register();
         ZoneManager.register();
         net.kuina.nebulaemirror.writeback.EditGuard.register();
         MirrorCommands.register();
