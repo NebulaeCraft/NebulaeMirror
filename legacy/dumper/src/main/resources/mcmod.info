@@ -4,5 +4,6 @@
   "description": "Client-side tool: exports every block's states, meta mapping, baked quads, shapes and textures for the NebulaeMirror 1.21.1 port.",
   "version": "${version}",
   "mcversion": "1.12.2",
-  "authorList": ["Kuina"]
+  "authorList": ["Kuina"],
+  "logoFile": "/assets/mirrordumper/icon.png"
 }]

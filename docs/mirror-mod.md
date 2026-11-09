@@ -16,7 +16,7 @@ python3 -I mirror/generator/generate.py --dump dumps/full
 cd mirror/mod && ./gradlew build
 ```
 
-The output is `mirror/mod/build/libs/nebulaemirror-<version>.jar`. Pass a different generator output directory with `-PgenDir=...`.
+The output is `mirror/mod/build/libs/NebulaeMirror-1.21.1-<version>.jar`. Pass a different generator output directory with `-PgenDir=...`.
 
 Self-test (opens a game window and exits automatically, about 20 seconds):
 

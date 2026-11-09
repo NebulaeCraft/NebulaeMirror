@@ -4,7 +4,7 @@ plugins {
 
 version = project.mod_version
 group = project.maven_group
-base { archivesName = project.archives_base_name }
+base { archivesName = "${project.archives_base_name}-${project.minecraft_version}" }
 
 // Output of mirror/generator (python3 -I mirror/generator/generate.py ...). Override with -PgenDir=...
 def genDir = file(project.findProperty('genDir') ?: "${rootDir}/../../work/gen")

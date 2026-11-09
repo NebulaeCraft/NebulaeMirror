@@ -1,6 +1,8 @@
 package net.kuina.nebulaemirror.writeback;
 
 import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.LocalConfiguration;
+import com.sk89q.worldedit.LocalSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.entity.Player;
@@ -12,6 +14,10 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.util.eventbus.Subscribe;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.block.BlockStateHolder;
+import com.sk89q.worldedit.world.item.ItemType;
+import com.sk89q.worldedit.world.item.ItemTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.ItemStack;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.kuina.nebulaemirror.NebulaeMirror;
 import net.minecraft.server.MinecraftServer;
@@ -35,6 +41,25 @@ final class WorldEditGuard {
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> server = null);
         WorldEdit.getInstance().getEventBus().register(new WorldEditGuard());
         NebulaeMirror.LOG.info("WorldEdit edits are limited to checked-out zones");
+    }
+
+    /**
+     * True for WorldEdit's selection wand, its navigation wand, and any item the player bound a WorldEdit tool
+     * (brush, super pickaxe, ...) to: their clicks are WorldEdit's, not block edits.
+     */
+    static boolean isWorldEditItem(ServerPlayer p, ItemStack stack) {
+        try {
+            String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+            LocalConfiguration cfg = WorldEdit.getInstance().getConfiguration();
+            if (id.equals(cfg.wandItem) || id.equals(cfg.navigationWand)) {
+                return true;
+            }
+            LocalSession session = WorldEdit.getInstance().getSessionManager().findByName(p.getGameProfile().getName());
+            ItemType type = ItemTypes.get(id);
+            return session != null && type != null && session.getTool(type) != null;
+        } catch (RuntimeException | LinkageError e) {
+            return false;
+        }
     }
 
     @Subscribe

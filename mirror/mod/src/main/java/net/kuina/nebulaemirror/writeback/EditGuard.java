@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class EditGuard {
     private static final Map<UUID, Long> LAST_MESSAGE = new ConcurrentHashMap<>();
+    private static final boolean WORLDEDIT = FabricLoader.getInstance().isModLoaded("worldedit");
 
     private EditGuard() {
     }
@@ -47,6 +48,11 @@ public final class EditGuard {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (player.getItemInHand(hand).isEmpty()) {
                 return InteractionResult.PASS; // doors, levers, chests: reverted by the next sync if they change state
+            }
+            if (WORLDEDIT && player instanceof ServerPlayer sp && WorldEditGuard.isWorldEditItem(sp, player.getItemInHand(hand))) {
+                // The wand's right click sets a selection point and WorldEdit tools edit through WorldEdit, whose
+                // edits are limited to zones separately: let WorldEdit handle the click.
+                return InteractionResult.PASS;
             }
             BlockPos p = hit.getBlockPos();
             return allowed(player, world, p) && allowed(player, world, p.relative(hit.getDirection()))
@@ -64,7 +70,7 @@ public final class EditGuard {
             }
             return InteractionResultHolder.pass(stack);
         });
-        if (FabricLoader.getInstance().isModLoaded("worldedit")) {
+        if (WORLDEDIT) {
             try {
                 WorldEditGuard.register();
             } catch (Throwable t) {

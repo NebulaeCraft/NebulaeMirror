@@ -4,5 +4,6 @@
   "description": "Server-side: applies write-back patches from the NebulaeMirror 1.21.1 mirror, with undo and rollback.",
   "version": "${version}",
   "mcversion": "1.12.2",
-  "authorList": ["Kuina"]
+  "authorList": ["Kuina"],
+  "logoFile": "/assets/mirrorbridge/icon.png"
 }]

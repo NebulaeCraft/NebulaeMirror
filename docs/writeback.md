@@ -145,7 +145,7 @@ See [bridge.md](bridge.md#verification-mirror--bridge-end-to-end-2026-11-08):
 
 The mirror follows the origin everywhere outside checked-out zones:
 
-- **Refused up front**: players cannot break or place blocks there, use items on blocks, or use buckets; they see a message telling them to check out a zone. WorldEdit edits by players skip blocks outside their zones and say so once. A player may build inside zones they checked out, or inside any zone with `nebulaemirror.zone.others`. Turn this off with `"protectOutsideZones": false` in config/nebulaemirror-sync.json.
+- **Refused up front**: players cannot break or place blocks there, use items on blocks, or use buckets; they see a message telling them to check out a zone. WorldEdit edits by players skip blocks outside their zones and say so once. A player may build inside zones they checked out, or inside any zone with `nebulaemirror.zone.others`. Turn this off with `"protectOutsideZones": false` in config/nebulaemirror-sync.json. Clicks with the WorldEdit wand, the navigation wand and items bound to WorldEdit tools are left to WorldEdit (selecting points works everywhere; the tools' edits are limited like any WorldEdit edit).
 - **Reverted at the next sync**: whatever still changes there. That includes commands such as `/setblock` and `/fill`, the console's WorldEdit, Axiom (it has no server-side hook to refuse it, but its writes mark chunks the usual way), opening doors, water, fire and growing plants. See [sync.md](sync.md).
 
 Not yet tried with a real player: the in-game refusal messages and WorldEdit for players. The recording and re-applying was tested (`/setblock`, `/fill`, console `//set`, restart, `sync apply`).

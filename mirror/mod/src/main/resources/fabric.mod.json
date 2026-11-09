@@ -5,6 +5,7 @@
   "name": "NebulaeMirror",
   "description": "Appearance-only 1.21.1 versions of the 1.12.2 NebulaeCraft server's modded blocks, for the mirror server.",
   "authors": ["Kuina"],
+  "icon": "assets/nebulaemirror/icon.png",
   "license": "All-Rights-Reserved",
   "environment": "*",
   "entrypoints": {
