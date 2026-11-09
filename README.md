@@ -19,6 +19,7 @@ The full design is in the approved technical plan (overall architecture, sync mo
 - [x] Chat sync: chat, joins and leaves both ways through the bridge, formats and switches in the mirror's sync config, see [docs/chat.md](docs/chat.md)
 - [x] WorldEdit short commands (`//s`, `//r`, `//c`, …, configurable), see [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
 - [x] Client config for creative tabs (hide per mod, choose the icon), see [docs/creative-tabs.md](docs/creative-tabs.md)
+- [x] Update guide for when the origin's mods change (blocks added, removed or changed), see [docs/mod-updates.md](docs/mod-updates.md)
 
 ## Versions
 
@@ -35,7 +36,7 @@ All three mods use two-part versions `1.x`; every release bumps the minor number
 | `mirror/generator/` | dump → mirror definition generator (Python, stdlib only) |
 | `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |
 | `mapping/snapshots/` | Registry/mapping snapshots for diffing new blocks |
-| `ops/scan/` | World scan and coverage check |
+| `ops/scan/` | World scan, coverage check and dump diff (`diff_dumps.py`) |
 | `ops/sync/` | Origin pull script (RCON + rsync) and its tests |
 | `ops/server/` `ops/launchd/` | Mirror server config, start script and launchd keep-alive |
 | `ops/mc/` | Fetch 1.21.1 official jars and generate reference data |
