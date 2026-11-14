@@ -1,87 +1,105 @@
 # NebulaeMirror
 
-A 1.21.1 Fabric mirror server for the 1.12.2 Forge build server, so players can use modern editing tools such as WorldEdit and Axiom. The mirror only needs to match the origin's **block appearance**. Origin → mirror runs as periodic incremental sync; mirror → origin is written back per checked-out zone.
+为 1.12.2 Forge 建筑服务器（原服）搭建的 1.21.1 Fabric 镜像服务器，让玩家可以使用 WorldEdit、Axiom 等现代编辑工具。镜像只需要还原原服的**方块外观**。原服 → 镜像是定期增量同步；镜像 → 原服按签出的区域写回。
 
-The full design is in the approved technical plan (overall architecture, sync model, plan for mod updates). Phase progress:
+完整设计见已批准的技术方案（整体架构、同步模型、mod 更新方案）。各阶段进度：
 
-- [x] Coverage scanner `ops/scan/` (1.12 world → (name, meta) / TE / entity stats, plus dump coverage check)
-- [x] 1.12 dumper `legacy/dumper/` (exports block properties, meta table, baked quads, shapes, textures, lang)
-- [x] Generator `mirror/generator/` (dump → 1.21 block definitions, models, forward/reverse mapping), see [docs/generator.md](docs/generator.md)
-- [x] Mirror mod `mirror/mod/` (Fabric 1.21.1): block registration, mesh models, items/creative tabs, legacy TE storage, unknown placeholder, see [docs/mirror-mod.md](docs/mirror-mod.md)
-- [x] FutureMC/Quark → 1.21 vanilla overrides (`mapping/overrides/`)
-- [x] Importer: full offline import (DFU + modded block substitution), see [docs/importer.md](docs/importer.md)
-- [x] P1 TileEntity-driven appearance: Chisels&Bits voxels, ArchitectureCraft shapes/roofs/windows, NebulaeCraft roadmark_text, MoarSigns, Chisel CTM → Continuity, see [docs/legacy-renderers.md](docs/legacy-renderers.md) (clients need Continuity), Railcraft outfitted-track kits (need a MirrorDumper 1.2 / 0.2.1 dump, see [docs/dumper.md](docs/dumper.md))
-- [x] P2 online incremental sync: pull (RCON `save-off`/`save-all flush` + rsync + `save-on`), timestamp + content-hash change detection, IO replacement of unloaded chunks / block diff of loaded chunks, in-mod timer + launchd keep-alive, see [docs/sync.md](docs/sync.md) (still to do: the first test against the real origin)
-- [x] P3 write-back, see [docs/writeback.md](docs/writeback.md):
-  - [x] step 1: reverse mapping (vanilla via DataFixer, mods via reverse.json), TileEntity/item downgrade, zones (`/nebulaemirror zone checkout|lint|diff|abandon`), patch file
-  - [x] step 2: bridge mod `legacy/bridge/` (apply patch quietly, undo file, rollback, conflict check), see [docs/bridge.md](docs/bridge.md)
-  - [x] step 3: zone lock at the origin (Forge events + FAWE mask), local HTTP API with token, `zone submit` with round-trip check, LuckPerms permission nodes
-- [x] Chat sync: chat, joins and leaves both ways through the bridge, formats and switches in the mirror's sync config, see [docs/chat.md](docs/chat.md)
-- [x] WorldEdit short commands (`//s`, `//r`, `//c`, …, configurable), see [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
-- [x] `/nm` short form of every `/nebulaemirror` command (`/nm zone checkout`, `/nm sync status`, …), see [docs/mirror-mod.md](docs/mirror-mod.md)
-- [x] Client config for creative tabs (hide per mod, choose the icon), see [docs/creative-tabs.md](docs/creative-tabs.md)
-- [x] Update guide for when the origin's mods change (blocks added, removed or changed), see [docs/mod-updates.md](docs/mod-updates.md)
+- [x] 覆盖率扫描器 `ops/scan/`（1.12 世界 →（name, meta）/ TE / 实体统计，以及 dump 覆盖率检查）
+- [x] 1.12 dumper `legacy/dumper/`（导出方块属性、meta 表、烘焙后的 quad、形状、贴图、语言文件）
+- [x] 生成器 `mirror/generator/`（dump → 1.21 方块定义、模型、正向/反向映射），见 [docs/generator.md](docs/generator.md)
+- [x] 镜像 mod `mirror/mod/`（Fabric 1.21.1）：方块注册、mesh 模型、物品/创造模式标签页、旧版 TE 存储、unknown 占位方块，见 [docs/mirror-mod.md](docs/mirror-mod.md)
+- [x] FutureMC/Quark → 1.21 原版的 override（`mapping/overrides/`）
+- [x] 导入器：离线全量导入（DFU + mod 方块替换），见 [docs/importer.md](docs/importer.md)
+- [x] P1 由 TileEntity 决定的外观：Chisels&Bits 体素、ArchitectureCraft 形状/屋顶/窗户、NebulaeCraft roadmark_text、MoarSigns、Chisel CTM → Continuity，见 [docs/legacy-renderers.md](docs/legacy-renderers.md)（客户端需要 Continuity）；Railcraft 套件轨道（需要 MirrorDumper 1.2 / 0.2.1 的 dump，见 [docs/dumper.md](docs/dumper.md)）
+- [x] P2 在线增量同步：拉取（RCON `save-off`/`save-all flush` + rsync + `save-on`）、时间戳 + 内容哈希的变更检测、未加载区块走 IO 替换 / 已加载区块走方块差异、mod 内定时器 + launchd 保活，见 [docs/sync.md](docs/sync.md)（待办：对真实原服的首次测试）
+- [x] P3 写回，见 [docs/writeback.md](docs/writeback.md)：
+  - [x] 第 1 步：反向映射（原版走 DataFixer，mod 走 reverse.json）、TileEntity/物品降级、区域（`/nebulaemirror zone checkout|lint|diff|abandon`）、patch 文件
+  - [x] 第 2 步：bridge mod `legacy/bridge/`（静默应用 patch、undo 文件、回滚、冲突检查），见 [docs/bridge.md](docs/bridge.md)
+  - [x] 第 3 步：原服上的区域锁（Forge 事件 + FAWE mask）、带 token 的本地 HTTP API、带往返校验的 `zone submit`、LuckPerms 权限节点
+- [x] 聊天同步：聊天、加入和离开经 bridge 双向同步，格式和开关在镜像的同步配置里，见 [docs/chat.md](docs/chat.md)
+- [x] WorldEdit 短命令（`//s`、`//r`、`//c` 等，可配置），见 [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
+- [x] 所有 `/nebulaemirror` 命令的短写 `/nm`（`/nm zone checkout`、`/nm sync status` 等），见 [docs/mirror-mod.md](docs/mirror-mod.md)
+- [x] 创造模式标签页的客户端配置（按 mod 隐藏、选择图标），见 [docs/creative-tabs.md](docs/creative-tabs.md)
+- [x] 原服 mod 变化（方块新增、移除或改变）时的更新指南，见 [docs/mod-updates.md](docs/mod-updates.md)
+- [x] 更新辅助程序 `ops/update/update.py`：列出 dump 客户端要更换的 jar，然后导入并检查新 dump、做对比、起草 override、生成、测试、升版本号并构建 jar，见 [docs/mod-updates.md](docs/mod-updates.md#使用辅助程序)
 
-## Versions
+## 版本
 
-All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). Since then: mirror mod 1.3 (creative tab config); mirror mod 1.4, bridge 1.4, dumper 1.3 (all in-game messages in Chinese); mirror mod 1.5 (WorldEdit `//pos2` outside checked-out zones); mirror mod 1.6 (`/nm` short form of `/nebulaemirror`); mirror mod 1.7 (boundary around checked-out zones: cyan for one's own, yellow for others'). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
+三个 mod 都使用两段式版本号 `1.x`，每次发布把小版本号加一。2026-11-08 重新编号时保留了各 mod 原来的小版本号：镜像 mod 1.2（原 0.1.0，加上 WorldEdit 短命令）、bridge 1.3（代码同 0.3.0）、dumper 1.2（代码同 0.2.1）。此后：镜像 mod 1.3（创造模式标签页配置）；镜像 mod 1.4、bridge 1.4、dumper 1.3（游戏内消息全部改为中文）；镜像 mod 1.5（WorldEdit `//pos2` 可选在签出区域之外）；镜像 mod 1.6（`/nebulaemirror` 的短写 `/nm`）；镜像 mod 1.7（签出区域的边界高亮：自己的为青色，他人的为黄色）。版本号在 `mirror/mod/gradle.properties`（`mod_version`）中设置；两个 Forge mod 的版本号在 `build.gradle` 中设置，并要同时修改 `MirrorBridge` / `MirrorDumper` 里的 `VERSION` 常量。
 
-## Layout
+## 目录结构
 
-| Directory | Contents |
+| 目录 | 内容 |
 |---|---|
-| `data/` | Origin server snapshots: world zip, config, mods (gitignored) |
-| `legacy/dumper/` | Forge 1.12.2 client mod: exports block appearance data |
-| `legacy/bridge/` | Forge 1.12.2 server mod: applies write-back patches (undo, rollback), zone locks, chat relay |
-| `mirror/mod/` | Fabric 1.21.1 mod (Gradle 9.8 + Loom, Mojang mappings) |
-| `mirror/generator/` | dump → mirror definition generator (Python, stdlib only) |
-| `mapping/overrides/` | Hand-curated mappings (format in docs/generator.md) |
-| `mapping/snapshots/` | Registry/mapping snapshots for diffing new blocks |
-| `ops/scan/` | World scan, coverage check and dump diff (`diff_dumps.py`) |
-| `ops/sync/` | Origin pull script (RCON + rsync) and its tests |
-| `ops/server/` `ops/launchd/` | Mirror server config, start script and launchd keep-alive |
-| `ops/mc/` | Fetch 1.21.1 official jars and generate reference data |
-| `dumps/` `work/` | Local dumps and intermediate files (gitignored) |
-| `docs/` | Usage docs |
+| `data/` | 原服快照：世界 zip、配置、mods（不入 git） |
+| `legacy/dumper/` | Forge 1.12.2 客户端 mod：导出方块外观数据 |
+| `legacy/bridge/` | Forge 1.12.2 服务端 mod：应用写回 patch（undo、回滚）、区域锁、聊天转发 |
+| `mirror/mod/` | Fabric 1.21.1 mod（Gradle 9.8 + Loom，Mojang 映射） |
+| `mirror/generator/` | dump → 镜像定义的生成器（Python，仅标准库） |
+| `mapping/overrides/` | 手写映射（格式见 docs/generator.md） |
+| `mapping/snapshots/` | 注册表/映射快照，用于对比新方块 |
+| `ops/scan/` | 世界扫描、覆盖率检查和 dump 对比（`diff_dumps.py`） |
+| `ops/sync/` | 原服拉取脚本（RCON + rsync）及其测试 |
+| `ops/update/` | 原服 mod 变化后更新镜像的辅助程序（`update.py`）及其测试 |
+| `ops/server/` `ops/launchd/` | 镜像服务器配置、启动脚本和 launchd 保活 |
+| `ops/mc/` | 下载 1.21.1 官方 jar 并生成参考数据 |
+| `dumps/` `work/` | 本地 dump 和中间文件（不入 git） |
+| `docs/` | 使用文档 |
 
-## Common commands
+## 常用命令
 
-Scan the world (stdlib Python only; 8 cores take about 5 minutes for the full world):
+扫描世界（只用 Python 标准库；8 核扫完整个世界约 5 分钟）：
 
 ```bash
 python3 -I ops/scan/scan_world.py data/2026.11.06.zip --out work/world-stats.json --workers 8
 ```
 
-Check whether a dump covers every block the world actually uses:
+检查某个 dump 是否覆盖了世界里实际用到的所有方块：
 
 ```bash
-python3 -I ops/scan/scan_world.py --stats work/world-stats.json --dump dumps/<dump dir>
+python3 -I ops/scan/scan_world.py --stats work/world-stats.json --dump dumps/<dump 目录>
 ```
 
-Build the dumper (needs JDK 8):
+构建 dumper（需要 JDK 8）：
 
 ```bash
 cd legacy/dumper && JAVA_HOME=$(/usr/libexec/java_home -v 1.8) ./gradlew build
 ```
 
-For running the dumper see [docs/dumper.md](docs/dumper.md).
+dumper 的运行方法见 [docs/dumper.md](docs/dumper.md)。
 
-Generate the mirror definitions (fetch the 1.21.1 reference data once first):
+生成镜像定义（先下载一次 1.21.1 参考数据）：
 
 ```bash
 JAVA=$(/usr/libexec/java_home -v 21+)/bin/java ops/mc/fetch_121.sh
 ```
 
 ```bash
-python3 -I mirror/generator/generate.py --dump dumps/<dump dir>
+python3 -I mirror/generator/generate.py --dump dumps/<dump 目录>
 ```
 
 ```bash
 python3 -I -m unittest discover -s mirror/generator/tests
 ```
 
-Sync tests (pull script):
+原服 mod 变化之后（见 [docs/mod-updates.md](docs/mod-updates.md#使用辅助程序)）：先看 dump 客户端要改什么，dump 之后再跑完其余步骤：
+
+```bash
+python3 -I ops/update/update.py prepare
+```
+
+```bash
+python3 -I ops/update/update.py run <dump zip>
+```
+
+同步测试（拉取脚本）：
 
 ```bash
 python3 -I -m unittest discover -s ops/sync/tests
+```
+
+更新辅助程序的测试：
+
+```bash
+python3 -I -m unittest discover -s ops/update/tests
 ```

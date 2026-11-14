@@ -1,74 +1,74 @@
-# Generator (dump → 1.21.1 mirror definitions)
+# 生成器（dump → 1.21.1 镜像定义）
 
-`mirror/generator/` turns a MirrorDumper dump into everything the 1.21.1 mirror mod and the sync tools need. Pure Python standard library, no build step.
+`mirror/generator/` 把 MirrorDumper 的 dump 变成 1.21.1 镜像 mod 和同步工具需要的一切。纯 Python 标准库，没有构建步骤。
 
 ```bash
-python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.21.1] [--overrides mapping/overrides] [--out work/gen]
+python3 -I mirror/generator/generate.py --dump dumps/<dump 目录> [--mc work/mc/1.21.1] [--overrides mapping/overrides] [--out work/gen]
     [--mods data/mods.zip] [--nebulaecraft ../NebulaeCraft/src/main/resources]
 ```
 
-`--mods` (the origin server's mods zip) supplies the MoarSigns sign textures; `--nebulaecraft` (the NebulaeCraft 2.26 source resources) supplies the roadmark fonts, falling back to the NebulaeCraft jar in the mods zip. Both are only needed for the P1 text renderers; without them the generator warns and continues.
+`--mods`（原服的 mods zip）提供 MoarSigns 的告示牌贴图；`--nebulaecraft`（NebulaeCraft 2.26 源码的资源目录）提供道路标线字体，找不到时回退到 mods zip 里的 NebulaeCraft jar。两者只有 P1 的文字渲染器需要；缺少时生成器给出警告并继续。
 
-`--mc` needs the 1.21.1 reference data (block report + vanilla texture list). Run `ops/mc/fetch_121.sh` once to produce it. The output directory is recreated on every run; to avoid deleting the wrong folder, it only clears directories it created itself.
+`--mc` 需要 1.21.1 参考数据（方块报告 + 原版贴图列表）。先运行一次 `ops/mc/fetch_121.sh` 来生成。输出目录每次运行都会重建；为了避免误删，它只清空自己创建的目录。
 
-## Output
+## 输出
 
-| File | Used by | Contents |
+| 文件 | 使用者 | 内容 |
 |---|---|---|
-| `mirror/blocks.json` | mirror mod | Every generated block: archetype, properties (kind/values/`stored`/`derived`/`legacy`), default state, per-state light/opacity/shape index, render layer, sound, emissive, tints, legacy-TE flag, item subtypes (with the state each places) and zh/en names. Shapes are deduplicated into the top-level `shapes` table |
-| `mirror/forward.json` | importer (origin → mirror) | `"ns:name" → {target, metas: {meta: {1.21 props}}}` |
-| `mirror/reverse.json` | submit (mirror → origin) | `"1.21 block" → {keys, map: {"k=v,...": [1.12 name, meta]}}`. `keys` holds only properties stored in the 1.12 meta; neighbour-derived properties (connections, stair shape) are ignored |
-| `mirror/vanilla_metas.json` | write-back | Vanilla 1.12 block → canonical metas with their 1.12 state, from the dump's meta table; the mod runs DataFixer over these to build its vanilla reverse table (see [writeback.md](writeback.md)) |
-| `mirror/source.json` | traceability | Dump version, versions of every mod, list of overrides used |
-| `assets/<ns>/blockstates/*.json` | client | Variants → `nebulaemirror:mesh/<hash>` |
-| `assets/nebulaemirror/meshes/<hash>.json` | client | Baked quads (block-space vertices, sprite-relative 0..16 UVs, `layer`, `cull`, `tint`, `shade`, `emissive`), deduplicated by content |
-| `assets/<ns>/textures/block/…` | client | Modded textures. Vanilla textures reference 1.21's own assets (`minecraft:block/black_concrete` and so on); only when no equivalent exists is the 1.12 file shipped under `nebulaemirror:block/legacy/minecraft/…` |
-| `assets/<ns>/lang/{en_us,zh_cn}.json` | client | Block names plus each subtype's legacy translation key |
-| `assets/nebulaemirror/optifine/ctm/<ns>/*.properties` + `textures/block/ctm/…` | client with Continuity | Chisel's CTM 1.12 connected/patterned/random textures converted to Continuity (OptiFine-format) rules, with the tiles cut out of CTM's sheets (see below) |
-| `assets/nebulaemirror/legacy/railcraft_tracks.json` | client | Railcraft outfitted track `"<rail>\|<kit>\|<shape>\|<state>"` → mesh, from the dump's `extras/railcraft_tracks.json` (MirrorDumper 1.2, formerly 0.2.1; `nebgen/tracks.py`). Missing from older dumps: the generator warns and tracks keep the default-kit model |
-| `assets/nebulaemirror/textures/moarsigns/…`, `assets/nebulaemirror/roadmark/*.ttf` | client | MoarSigns sign textures and the NebulaeCraft road-marking fonts for the text renderers |
-| `report.json` / `report.md` | humans | Counts, errors, warnings (grouped by type, listing the blocks), missing textures, foreign item subtypes, and so on |
+| `mirror/blocks.json` | 镜像 mod | 每个生成的方块：原型、属性（kind/values/`stored`/`derived`/`legacy`）、默认状态、每个状态的亮度/不透明度/形状索引、渲染层、音效、自发光、染色、旧版 TE 标志、物品子类型（及其放置出的状态）和中英文名称。形状去重后放在顶层的 `shapes` 表里 |
+| `mirror/forward.json` | 导入器（原服 → 镜像） | `"ns:name" → {target, metas: {meta: {1.21 属性}}}` |
+| `mirror/reverse.json` | 提交（镜像 → 原服） | `"1.21 方块" → {keys, map: {"k=v,...": [1.12 名称, meta]}}`。`keys` 只包含存储在 1.12 meta 里的属性；由邻居推导的属性（连接、楼梯形状）被忽略 |
+| `mirror/vanilla_metas.json` | 写回 | 原版 1.12 方块 → 规范 meta 及其 1.12 状态，来自 dump 的 meta 表；mod 对它们运行 DataFixer 来建立原版方块的反向表（见 [writeback.md](writeback.md)） |
+| `mirror/source.json` | 可追溯性 | dump 版本、每个 mod 的版本、用到的 override 列表 |
+| `assets/<ns>/blockstates/*.json` | 客户端 | variants → `nebulaemirror:mesh/<hash>` |
+| `assets/nebulaemirror/meshes/<hash>.json` | 客户端 | 烘焙后的 quad（方块空间顶点、相对于 sprite 的 0..16 UV、`layer`、`cull`、`tint`、`shade`、`emissive`），按内容去重 |
+| `assets/<ns>/textures/block/…` | 客户端 | mod 贴图。原版贴图引用 1.21 自己的资源（`minecraft:block/black_concrete` 等）；只有在没有对应贴图时才把 1.12 的文件放到 `nebulaemirror:block/legacy/minecraft/…` 下一起发布 |
+| `assets/<ns>/lang/{en_us,zh_cn}.json` | 客户端 | 方块名称，以及每个子类型的旧版翻译键 |
+| `assets/nebulaemirror/optifine/ctm/<ns>/*.properties` + `textures/block/ctm/…` | 装了 Continuity 的客户端 | Chisel 的 CTM 1.12 连接/图案/随机贴图转换成的 Continuity（OptiFine 格式）规则，瓦片从 CTM 的图集里切出（见下文） |
+| `assets/nebulaemirror/legacy/railcraft_tracks.json` | 客户端 | Railcraft 套件轨道 `"<rail>\|<kit>\|<shape>\|<state>"` → mesh，来自 dump 的 `extras/railcraft_tracks.json`（MirrorDumper 1.2，原 0.2.1；`nebgen/tracks.py`）。旧 dump 里没有：生成器给出警告，轨道保持默认套件的模型 |
+| `assets/nebulaemirror/textures/moarsigns/…`、`assets/nebulaemirror/roadmark/*.ttf` | 客户端 | 供文字渲染器使用的 MoarSigns 告示牌贴图和 NebulaeCraft 道路标线字体 |
+| `report.json` / `report.md` | 人 | 计数、错误、警告（按类型分组并列出方块）、缺失贴图、外来的物品子类型等 |
 
-## Key rules
+## 关键规则
 
-- **Vanilla blocks are not generated here**; the importer handles them with Minecraft's built-in DFU. Modded blocks keep their original namespaces (e.g. `nebulaecraft:asphalt`), so you can write them directly in WorldEdit/Axiom.
-- **Archetypes**: subclasses of 1.12 `BlockStairs`/`BlockDoor`/`BlockTrapDoor`/`BlockFenceGate`/`BlockWall`/`BlockFence`/`BlockPane` map onto the matching 1.21 behaviour, so connections and stair shapes are recalculated in 1.21. Extra properties of those blocks (e.g. colour) are kept. Everything else is `generic`, keeping its 1.12 properties verbatim:
-  - `facing`-style properties → `direction`;
-  - contiguous integers → `int`;
-  - `axis` → `axis`;
-  - everything else → string enum.
+- **原版方块不在这里生成**；导入器用 Minecraft 自带的 DFU 处理它们。mod 方块保留原来的命名空间（例如 `nebulaecraft:asphalt`），所以可以直接在 WorldEdit/Axiom 里写它们的名字。
+- **原型（archetype）**：1.12 里 `BlockStairs`/`BlockDoor`/`BlockTrapDoor`/`BlockFenceGate`/`BlockWall`/`BlockFence`/`BlockPane` 的子类映射到对应的 1.21 行为，所以连接和楼梯形状在 1.21 里重新计算。这些方块的额外属性（例如颜色）会保留。其余都是 `generic`，原样保留 1.12 的属性：
+  - `facing` 类属性 → `direction`；
+  - 连续整数 → `int`；
+  - `axis` → `axis`；
+  - 其他 → 字符串枚举。
 
-  Rotating and mirroring in WorldEdit/Axiom relies on the first three types.
-- **Item subtypes**: item damage is not the block meta (in NebulaeCraft, meta 1 = facing south while item 1 = subtype1). The placed state is resolved in this order:
-  1. `getPickBlock`;
-  2. `damageDropped`;
-  3. a property value named in the translation key;
-  4. item damage = block meta.
-- **Alias metas**: some blocks decode several metas into the same state (Chisel `marble2` treats meta 8–15 as variation 7; the world holds 1.1 billion of these). Forward maps them to the state they actually render; reverse writes back the canonical meta (forward records this in `aliases`). Unmodified blocks are never written back, so the original alias meta is preserved.
-- **Single-valued properties** (Quark's `prop=blarg`, NebulaeCraft's single-value `subtype`) carry no information and 1.21 doesn't allow them, so they are dropped and added back as constants when mapping to 1.12.
-- **Writability** (`writable: false` on a state in `blocks.json`): a mirror state can be written back only if its **properties that 1.12 stores in meta** match some meta. Properties 1.12 computes itself (connections, stair shape, Sakura fence `up`, Railcraft post links) don't restrict writability because the origin recomputes them after write-back. Doors are checked per half (lower half: facing/open; upper half: hinge/powered). Unwritable states are hidden from creative tabs and rejected by the submit lint.
-- **Full state space**: 1.21 creates every property combination of a block, so every combination gets a model. Combinations no dump state covers (e.g. Extra Utilities 2 pipe connections) borrow the nearest state and are marked unwritable.
-- **Self-check** on every run; any failure is an error and exits non-zero:
-  - every meta goes forward → reverse back to the same (name, meta);
-  - archetype variants cover the full state space;
-  - forward states are legal for their target block;
-  - every block has a variant for its default state.
-- **CTM → Continuity** (`nebgen/ctm.py`): every sprite the meshes use whose 1.12 `.mcmeta` has a `ctm` section is converted. CTM's own type decides the Continuity method and tile order:
+  WorldEdit/Axiom 里的旋转和镜像依赖前三种类型。
+- **物品子类型**：物品 damage 不等于方块 meta（在 NebulaeCraft 里，meta 1 = 朝南，而物品 1 = subtype1）。放置出的状态按以下顺序确定：
+  1. `getPickBlock`；
+  2. `damageDropped`；
+  3. 翻译键里出现的属性取值；
+  4. 物品 damage = 方块 meta。
+- **别名 meta**：有些方块把多个 meta 解码成同一个状态（Chisel 的 `marble2` 把 meta 8–15 都当作 variation 7；世界里有 11 亿个这样的方块）。正向映射把它们映射到实际渲染的状态；反向映射写回规范 meta（正向映射在 `aliases` 里记录这一点）。没有改动过的方块永远不会被写回，所以原来的别名 meta 得以保留。
+- **单值属性**（Quark 的 `prop=blarg`、NebulaeCraft 的单值 `subtype`）不携带任何信息，1.21 也不允许，所以它们被丢弃，映射回 1.12 时再作为常量补上。
+- **可写性**（`blocks.json` 里状态上的 `writable: false`）：只有当镜像状态里**1.12 存储在 meta 中的属性**能对上某个 meta 时，它才能被写回。1.12 自己计算的属性（连接、楼梯形状、Sakura 栅栏的 `up`、Railcraft 立柱的连接）不限制可写性，因为写回之后原服会重新计算它们。门按上下半分别检查（下半：facing/open；上半：hinge/powered）。不可写的状态在创造模式标签页里隐藏，并被提交时的 lint 拒绝。
+- **完整状态空间**：1.21 会为方块创建所有属性组合，所以每个组合都要有模型。dump 里没有任何状态覆盖的组合（例如 Extra Utilities 2 管道的连接）借用最接近的状态，并标记为不可写。
+- 每次运行都做**自检**；任何失败都是错误，并以非零状态退出：
+  - 每个 meta 正向 → 反向之后回到同一个（name, meta）；
+  - 原型的 variants 覆盖完整的状态空间；
+  - 正向映射的状态对目标方块是合法的；
+  - 每个方块的默认状态都有 variant。
+- **CTM → Continuity**（`nebgen/ctm.py`）：mesh 用到的每个 sprite，只要它的 1.12 `.mcmeta` 里有 `ctm` 段，就会被转换。CTM 自己的类型决定 Continuity 的方法和瓦片顺序：
 
-  | CTM 1.12 / Chisel | Continuity | Notes |
+  | CTM 1.12 / Chisel | Continuity | 备注 |
   |---|---|---|
-  | `ctm` (base + 2×2 `-ctm` sheet) | `ctm_compact` | tiles 0 base, 1 full, 2 vertical, 3 horizontal, 4 inner corners = CTM sheet TL/TR/BL/BR |
+  | `ctm`（基础图 + 2×2 的 `-ctm` 图集） | `ctm_compact` | 瓦片 0 基础、1 完整、2 竖向、3 横向、4 内角 = CTM 图集的 左上/右上/左下/右下 |
   | `ctmh` | `horizontal` | |
-  | `pillar` / `ctmv` | `vertical`, side faces only | vertical columns; lying pillars stay unconnected |
-  | `pattern` / `v` | `repeat` | one file per face group, so the tile phase matches CTM's world-position formula exactly |
-  | `random` / `r`, Chisel `AR` | `random` | same tiles; which block gets which tile differs from 1.12 |
-  | Chisel `SCTM` | `fixed` | the unconnected tile |
+  | `pillar` / `ctmv` | `vertical`，仅侧面 | 竖直的柱子；横放的柱子保持不连接 |
+  | `pattern` / `v` | `repeat` | 每组面一个文件，所以瓦片相位与 CTM 的世界坐标公式完全一致 |
+  | `random` / `r`、Chisel `AR` | `random` | 瓦片相同；哪个方块得到哪个瓦片与 1.12 不同 |
+  | Chisel `SCTM` | `fixed` | 未连接的瓦片 |
 
-  Connections use `connect=state` (CTM's default). Animated sheets keep their frames. File names never start with `block_`, which Continuity would read as a block match. CTM `light: 15` marks the quads emissive (the dump already has it for those).
-- **TESR-only blocks**: MoarSigns states are `INVISIBLE` in 1.12 yet the dump carries a baked placeholder cube; their meshes are left empty because the mirror's sign renderer draws them.
-- **Archetype specs** are checked against the real property sets in the 1.21.1 block report on every run, so a Minecraft version change is caught immediately.
+  连接使用 `connect=state`（CTM 的默认值）。动画图集保留它们的帧。文件名从不以 `block_` 开头，否则 Continuity 会把它当成方块匹配。CTM 的 `light: 15` 会把 quad 标记为自发光（dump 里这些 quad 已经带有该标记）。
+- **仅由 TESR 绘制的方块**：MoarSigns 的状态在 1.12 里是 `INVISIBLE`，但 dump 里带有一个烘焙出的占位立方体；它们的 mesh 留空，因为镜像的告示牌渲染器会绘制它们。
+- **原型规格**在每次运行时都会对照 1.21.1 方块报告里真实的属性集合进行检查，所以 Minecraft 版本变化会立刻被发现。
 
-## Hand-written mappings `mapping/overrides/*.json`
+## 手写映射 `mapping/overrides/*.json`
 
 ```json
 {
@@ -88,21 +88,21 @@ python3 -I mirror/generator/generate.py --dump dumps/<dump dir> [--mc work/mc/1.
 }
 ```
 
-- Existing rule files: `futuremc.json` (all 79 FutureMC blocks → their 1.21 vanilla equivalents) and `quark.json` (49 Quark blocks: wooden buttons/pressure plates/trapdoors, and stairs/slabs/walls of vanilla stones). With these, builders can use vanilla blocks such as `andesite_stairs` in the mirror, and write-back turns them into the corresponding FutureMC/Quark block.
-- `target`: map to an existing 1.21 block instead of generating one. For each meta, the 1.21 state is built as fixed `state` + renamed 1.12 properties (`props`: old name → new name, `null` drops it) + value renames (`values`). `metas.<n>` overrides a single meta (`"unknown"` = keep that meta as a placeholder; a dict with `"@target"` sends that meta to a different block and replaces the derived properties entirely, e.g. a FutureMC stripped log with `axis=none` → `stripped_*_wood`, or a soul torch facing up → `soul_torch`; alias metas fall back to the rule of their canonical meta). Target properties and values are checked against the 1.21.1 report; any mismatch is an error. With `"reverse": false` the mirror never writes this block back.
-- `archetype`: force an archetype, or `generic`.
-- `unknown`: generate nothing; the importer keeps these as placeholders that preserve the original data.
+- 现有的规则文件：`futuremc.json`（全部 79 个 FutureMC 方块 → 对应的 1.21 原版方块）和 `quark.json`（49 个 Quark 方块：木质按钮/压力板/活板门，以及原版石材的楼梯/台阶/墙）。有了它们，建筑者可以在镜像里使用 `andesite_stairs` 这样的原版方块，写回时会变成对应的 FutureMC/Quark 方块。
+- `target`：映射到已有的 1.21 方块，而不是生成一个新方块。对每个 meta，1.21 状态由固定的 `state` + 改名后的 1.12 属性（`props`：旧名 → 新名，`null` 表示丢弃）+ 取值改名（`values`）组成。`metas.<n>` 覆盖单个 meta（`"unknown"` = 把这个 meta 保留为占位方块；带 `"@target"` 的字典把这个 meta 送到另一个方块，并完全替换推导出的属性，例如 `axis=none` 的 FutureMC 去皮原木 → `stripped_*_wood`，或朝上的灵魂火把 → `soul_torch`；别名 meta 使用其规范 meta 的规则）。目标属性和取值会对照 1.21.1 报告检查；任何不匹配都是错误。加上 `"reverse": false` 后，镜像永远不会把这个方块写回。
+- `archetype`：强制指定原型，或 `generic`。
+- `unknown`：什么都不生成；导入器把这些方块保留为占位方块，原始数据不变。
 
-When several 1.12 blocks share one target, reverse priority is: generated block's own target > override's main target > per-meta `@target` redirect; within the same priority the first one wins. Conflicts are listed in the report's `reverseAmbiguous`. For example, a 1.21 acacia trapdoor is written back as `futuremc:acacia_trapdoor`, not Quark's; a 1.21 cartography table has no facing, so it is written back as one fixed meta. Reverse keys only include properties that actually vary across the canonical metas (FutureMC barrel's `open` lives in its TE and is ignored).
+多个 1.12 方块共用一个目标时，反向映射的优先级是：生成方块自己的目标 > override 的主目标 > 单个 meta 的 `@target` 重定向；同一优先级内先出现的胜出。冲突列在报告的 `reverseAmbiguous` 里。例如，1.21 的金合欢木活板门写回成 `futuremc:acacia_trapdoor`，而不是 Quark 的；1.21 的制图台没有朝向，所以写回成一个固定的 meta。反向映射的键只包含在各规范 meta 之间确实有变化的属性（FutureMC 木桶的 `open` 存在 TE 里，被忽略）。
 
-## Current results (full modpack dump, 2026-11-07)
+## 当前结果（完整模组包 dump，2026-11-07）
 
-- 1755 dumped blocks; 1373 generated (81 stairs, 23 panes, 2 fences, 1 fence gate, 1 door, 1265 generic); 128 mapped onto 1.21 vanilla via overrides; 39,011 states / 14,750 meshes, 0 errors, about 15 seconds.
-- World coverage (`ops/scan`): every (name, meta) the world uses is mapped, except the 2 NebulaeCraft blocks removed long ago (`device_apple_iphone` ×1106, `countdown` ×1), which become unknown placeholders.
-- Textures: 3611 modded copied; 101 vanilla references point at 1.21's own textures; 1 kept as a 1.12 fallback; Extra Utilities 2's runtime sprites (23) were read back from the atlas.
-- Warnings that matter:
-  - About 38 blocks reference textures that are missing in 1.12 too. They include 4 NebulaeCraft blocks (`device_ms_surface`, `fire_hydrant`, `info_screen_5`, `screen_door_top`) that need fixing in NebulaeCraft.
-  - 66 blocks have no quads (mostly Chisels&Bits, which renders from TE data); P1 handles these.
-- CTM: 654 textures converted (365 connected, 125 pattern, 117 random/AR, 26 pillar, 15 horizontal, 6 SCTM) into 1154 property files and 3275 tiles.
-  - About 139 blocks have appearance properties that 1.12 derives from neighbours/TE. The mirror shows them as stored; these are mainly Railcraft posts/wires and Quark flowerpots.
-  - About 3984 unwritable states, almost all Chisel's unused variations.
+- dump 了 1755 个方块；生成 1373 个（81 个楼梯、23 个玻璃板类、2 个栅栏、1 个栅栏门、1 个门、1265 个普通方块）；128 个通过 override 映射到 1.21 原版；39,011 个状态 / 14,750 个 mesh，0 个错误，约 15 秒。
+- 世界覆盖率（`ops/scan`）：世界里用到的每个（name, meta）都有映射，只有 2 个很久以前移除的 NebulaeCraft 方块除外（`device_apple_iphone` ×1106、`countdown` ×1），它们变成 unknown 占位方块。
+- 贴图：复制了 3611 张 mod 贴图；101 个原版引用指向 1.21 自己的贴图；1 张保留为 1.12 回退贴图；Extra Utilities 2 的运行时 sprite（23 个）从图集读回。
+- 值得注意的警告：
+  - 约 38 个方块引用了在 1.12 里就缺失的贴图。其中包括 4 个 NebulaeCraft 方块（`device_ms_surface`、`fire_hydrant`、`info_screen_5`、`screen_door_top`），需要在 NebulaeCraft 里修复。
+  - 66 个方块没有 quad（大多是 Chisels&Bits，它根据 TE 数据渲染）；由 P1 处理。
+- CTM：转换了 654 张贴图（365 张连接、125 张图案、117 张随机/AR、26 张柱状、15 张横向、6 张 SCTM），得到 1154 个 properties 文件和 3275 个瓦片。
+  - 约 139 个方块有 1.12 根据邻居/TE 推导的外观属性。镜像按存储的值显示它们；主要是 Railcraft 的立柱/电线和 Quark 的花盆。
+  - 约 3984 个不可写的状态，几乎全是 Chisel 没用到的 variation。

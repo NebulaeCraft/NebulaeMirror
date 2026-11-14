@@ -1,10 +1,10 @@
-# Importer (1.12.2 world → 1.21.1 mirror world)
+# 导入器（1.12.2 世界 → 1.21.1 镜像世界）
 
-Part of `mirror/mod`: when the mirror server starts with the right JVM argument, it converts the 1.12 overworld region files into the server's world directory before any world is loaded, then the server starts as normal. This is the "full offline import" from the plan; the online incremental sync ([sync.md](sync.md)) uses the same chunk converter.
+它是 `mirror/mod` 的一部分：镜像服务器带上相应的 JVM 参数启动时，会在加载任何世界之前，把 1.12 主世界的 region 文件转换到服务器的世界目录里，然后服务器照常启动。这就是方案里的「离线全量导入」；在线增量同步（[sync.md](sync.md)）使用同一个区块转换器。
 
-## Usage
+## 用法
 
-1. Prepare a void flat world in the mirror server's `server.properties` (example in [ops/server/server.properties](../ops/server/server.properties)):
+1. 在镜像服务器的 `server.properties` 里准备一个虚空超平坦世界（示例见 [ops/server/server.properties](../ops/server/server.properties)）：
 
    ```properties
    level-type=minecraft\:flat
@@ -12,72 +12,72 @@ Part of `mirror/mod`: when the mirror server starts with the right JVM argument,
    generate-structures=false
    ```
 
-2. Get a copy of the 1.12 world (a directory containing `level.dat` and `region/`; rsync is enough).
-3. Start the server with the import arguments:
+2. 准备一份 1.12 世界的副本（包含 `level.dat` 和 `region/` 的目录；用 rsync 就够了）。
+3. 带上导入参数启动服务器：
 
    ```bash
    java -Dnebulaemirror.import=/path/to/world12 -jar fabric-server-launch.jar nogui
    ```
 
-   Optional arguments:
-   - `-Dnebulaemirror.import.regions=x1,z1,x2,z2`: import only that range of regions (for testing);
-   - `-Dnebulaemirror.import.threads=8`;
-   - `-Dnebulaemirror.import.overwrite=true`: allow overwriting an existing `region/`. By default it refuses to overwrite.
+   可选参数：
+   - `-Dnebulaemirror.import.regions=x1,z1,x2,z2`：只导入这个范围的 region（用于测试）；
+   - `-Dnebulaemirror.import.threads=8`；
+   - `-Dnebulaemirror.import.overwrite=true`：允许覆盖已有的 `region/`。默认拒绝覆盖。
 
-4. The import also writes the incremental-sync baseline (`world/nebulaemirror/sync/`, see [sync.md](sync.md)). So import from the same local copy that the sync's `source` points to.
-5. Results are written to `world/nebulaemirror-import.json`: chunk/block counts, unknown blocks (by name:meta), errors, and the 1.12 spawn point. The spawn is applied to the mirror world automatically on first start.
+4. 导入还会写入增量同步的基线（`world/nebulaemirror/sync/`，见 [sync.md](sync.md)）。所以要从同步配置里 `source` 指向的那份本地副本导入。
+5. 结果写到 `world/nebulaemirror-import.json`：区块/方块计数、unknown 方块（按 name:meta）、错误，以及 1.12 的出生点。首次启动时出生点会自动应用到镜像世界。
 
-For development, `cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12 [-PimportRegions=...]` uses `run/import/`.
+开发时，`cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12 [-PimportRegions=...]` 使用 `run/import/`。
 
-## Conversion flow (`ChunkConverter`)
+## 转换流程（`ChunkConverter`）
 
-1. **Lift modded blocks out**: decode 1.12 IDs and metas through the source world's `level.dat` FML registry; IDs are never hard-coded. Every non-`minecraft` block is replaced with air in the arrays and recorded in a side table together with its TileEntity.
-2. **Vanilla upgrade**: the remaining purely vanilla chunk goes through Minecraft's own DataFixer (1343 → 3955). It uses the same context the server would for a "flat overworld", so no below-zero regeneration or terrain blending is scheduled. Signs, banners, beds, flower pots, double plants and so on are all handled by the official logic.
-3. **Write modded blocks back**: target states from `forward.json`, written into the 1.21 section palettes:
-   - Generated blocks that had a TE in 1.12, and unmapped blocks (`nebulaemirror:unknown`), get a `nebulaemirror:legacy` block entity whose `Legacy` tag = `{Name, Meta, TileEntity?}`, kept unchanged for write-back. For C&B/ArchitectureCraft a derived `Render` tag is added as well (see [legacy-renderers.md](legacy-renderers.md)).
-   - Blocks whose target depends on neighbours (stairs/walls/fences/panes/fence gates/doors, including FutureMC/Quark mapped onto vanilla) are queued in `UpgradeData`, so 1.21 recomputes their connections and shapes on first load.
-4. **Finish**: remove `below_zero_retrogen`/`blending_data`/`Heightmaps`, set `Status=full` and `isLightOn=false`. The server relights the chunk and rebuilds heightmaps on load.
+1. **取出 mod 方块**：通过源世界 `level.dat` 里的 FML 注册表解码 1.12 的 ID 和 meta；ID 从不硬编码。每个非 `minecraft` 的方块在数组里被替换成空气，并连同它的 TileEntity 一起记录在一张旁表里。
+2. **原版升级**：剩下的纯原版区块交给 Minecraft 自己的 DataFixer（1343 → 3955）。它使用服务器对「超平坦主世界」会用的同一个上下文，所以不会安排 0 层以下的重新生成或地形混合。告示牌、旗帜、床、花盆、双层植物等都由官方逻辑处理。
+3. **写回 mod 方块**：目标状态来自 `forward.json`，写入 1.21 的 section 调色板：
+   - 在 1.12 里带 TE 的生成方块，以及未映射的方块（`nebulaemirror:unknown`），会得到一个 `nebulaemirror:legacy` 方块实体，它的 `Legacy` 标签 = `{Name, Meta, TileEntity?}`，原样保留用于写回。对 C&B/ArchitectureCraft 还会额外添加一个推导出的 `Render` 标签（见 [legacy-renderers.md](legacy-renderers.md)）。
+   - 目标状态取决于邻居的方块（楼梯/墙/栅栏/玻璃板/栅栏门/门，包括映射到原版的 FutureMC/Quark）会加入 `UpgradeData` 队列，于是 1.21 在首次加载时重新计算它们的连接和形状。
+4. **收尾**：移除 `below_zero_retrogen`/`blending_data`/`Heightmaps`，设置 `Status=full` 和 `isLightOn=false`。服务器在加载时会重新计算区块光照并重建高度图。
 
-Also handled:
-- **Biomes**: modded biomes are mapped to the vanilla biome with the same climate (the generator's `biomes.json`; `sakura:bamboo_forest` → jungle, `maple_forest` → forest), then upgraded by DFU.
-- **Scheduled ticks**: those belonging to modded blocks are dropped.
-- **Large chunks**: chunks over 1 MB are written as `.mcc` external files.
+另外还处理：
+- **生物群系**：mod 生物群系映射到气候相同的原版生物群系（生成器的 `biomes.json`；`sakura:bamboo_forest` → jungle，`maple_forest` → forest），然后由 DFU 升级。
+- **计划刻**：属于 mod 方块的被丢弃。
+- **大区块**：超过 1 MB 的区块写成 `.mcc` 外部文件。
 
-## Verification (9 regions around spawn, x 2..4 / z −3..−1)
+## 验证（出生点周围 9 个 region，x 2..4 / z −3..−1）
 
-- 9216 chunks, **0 failures, 18 seconds** (10 threads); output 108 MB (input 94 MB). Full world estimate: about 1.5 million chunks, around 50 minutes, about 12 GB.
-- `/nebulaemirror stats <chunk range>` was compared with the `ops/scan` result for the same area:
-  - Every modded namespace is **identical** (NebulaeCraft 837,595 = 837,569 + 26 unknown iPhones; Chisel 8,178,652; C&B 280,686; Railcraft 2,289,266, and so on).
-  - The 683,864 FutureMC/Quark blocks all landed on the right vanilla blocks.
-  - Total non-air blocks 166,542,391 → 166,542,388. The 3 vanilla blocks lost were removed by 1.21 during the vanilla upgrade's own shape updates (floating torches and the like); a normal 1.21 upgrade does the same. Write-back diffs against the mirror's own checkout snapshot, so these 3 are not deleted from the origin.
-  - 302,346 legacy block entities (C&B, ArchitectureCraft, Railcraft tanks, NebulaeCraft tdt/roadmark_text and so on).
-- Screenshot tour (`./gradlew runTourClient -PtourWorld=world -PtourFile=/abs/tour.txt`, after copying the world into `run/tour/saves/`): roads/parking markings, viaduct and catenary, cable-stayed bridge, station, cherry trees and buildings render correctly.
+- 9216 个区块，**0 个失败，18 秒**（10 线程）；输出 108 MB（输入 94 MB）。全世界估算：约 150 万个区块，约 50 分钟，约 12 GB。
+- 把 `/nebulaemirror stats <区块范围>` 与同一区域的 `ops/scan` 结果做了对比：
+  - 每个 mod 命名空间都**完全一致**（NebulaeCraft 837,595 = 837,569 + 26 个 unknown 的 iPhone；Chisel 8,178,652；C&B 280,686；Railcraft 2,289,266，等等）。
+  - 683,864 个 FutureMC/Quark 方块全部落在了正确的原版方块上。
+  - 非空气方块总数 166,542,391 → 166,542,388。少掉的 3 个原版方块是 1.21 在原版升级自身的形状更新中移除的（悬空的火把之类）；普通的 1.21 升级也会这样。写回是与镜像自己的签出快照做差异，所以这 3 个方块不会从原服删除。
+  - 302,346 个旧版方块实体（C&B、ArchitectureCraft、Railcraft 储罐、NebulaeCraft 的 tdt/roadmark_text 等）。
+- 截图巡览（`./gradlew runTourClient -PtourWorld=world -PtourFile=/abs/tour.txt`，先把世界拷到 `run/tour/saves/`）：道路/停车位标线、高架桥和接触网、斜拉桥、车站、樱花树和建筑都渲染正确。
 
-## Full-world import (2026-11-07, from the `2026.11.06` backup)
+## 全世界导入（2026-11-07，使用 `2026.11.06` 备份）
 
-- 1553 regions / **1,497,442 chunks, 0 failures, 31 minutes** (10 cores, `-Xmx8G`); output 7.9 GB.
-- Matches the `ops/scan` full-world scan exactly:
-  - 1,279,648,994 modded blocks;
-  - 1,107 unknown placeholders (`device_apple_iphone` ×1106, `countdown` ×1).
-- Also recorded in the report:
-  - 3,723,724 legacy block entities;
-  - 1,603,803 shape-update positions;
-  - 9,010 TileEntities dropped (from blocks that map onto vanilla blocks without a legacy BE, e.g. FutureMC barrels);
-  - 410,592 entities dropped (not imported yet).
-- Screenshot tour at 6 spots across the map (the 6 chunk clusters with the most NebulaeCraft blocks): skyscraper facades and interiors, roads, crosswalks, viaducts, NebulaeCraft colour-block pixel art, and Sakura maple and cherry trees all render correctly.
+- 1553 个 region / **1,497,442 个区块，0 个失败，31 分钟**（10 核，`-Xmx8G`）；输出 7.9 GB。
+- 与 `ops/scan` 的全世界扫描完全吻合：
+  - 1,279,648,994 个 mod 方块；
+  - 1,107 个 unknown 占位方块（`device_apple_iphone` ×1106、`countdown` ×1）。
+- 报告里还记录了：
+  - 3,723,724 个旧版方块实体；
+  - 1,603,803 个形状更新位置；
+  - 丢弃了 9,010 个 TileEntity（来自映射到原版方块、且没有旧版方块实体的方块，例如 FutureMC 木桶）；
+  - 丢弃了 410,592 个实体（暂未导入）。
+- 在地图上 6 个地点做了截图巡览（NebulaeCraft 方块最多的 6 个区块簇）：摩天楼的外立面和内部、道路、人行横道、高架桥、NebulaeCraft 色块像素画，以及 Sakura 的枫树和樱花树都渲染正确。
 
-Development command used:
+使用的开发命令：
 
 ```bash
 cd mirror/mod && ./gradlew runImportServer -PimportSource=/abs/path/world12-full -PimportRunDir=run/full
 ```
 
-## Known limitations
+## 已知限制
 
-| Item | Status |
+| 项目 | 状态 |
 |---|---|
-| ArchitectureCraft shape blocks | Models, roofs and windows render (P1); cladding (unused in the world) shows the base material as a full block |
-| Chisels&Bits | Renders (P1) |
-| Entities (armor stands, item frames, paintings, mobs, minecarts) | Not imported yet (139 dropped in the test area). Decorative entities are later work |
-| Modded items in vanilla containers | Can't exist in 1.21 and are dropped (only the mirror's copy; the origin is unaffected) |
-| Online incremental sync | Done in P2, see [sync.md](sync.md); skipping locked zones uses the `SyncGuard` hook, which P3 zones will plug into |
+| ArchitectureCraft 形状方块 | 模型、屋顶和窗户可以渲染（P1）；覆层（世界里没有用到）显示为基础材质的完整方块 |
+| Chisels&Bits | 可以渲染（P1） |
+| 实体（盔甲架、物品展示框、画、生物、矿车） | 暂未导入（测试区域里丢弃了 139 个）。装饰性实体留待以后处理 |
+| 原版容器里的 mod 物品 | 在 1.21 里无法存在，被丢弃（只影响镜像的副本；原服不受影响） |
+| 在线增量同步 | 已在 P2 完成，见 [sync.md](sync.md)；跳过被锁定的区域使用 `SyncGuard` 钩子，P3 的区域会接入它 |

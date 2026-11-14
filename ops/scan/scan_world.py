@@ -151,7 +151,10 @@ def coverage(stats, dump_dir):
         if name not in cache:
             ns, path = name.split(':', 1)
             f = os.path.join(dump_dir, 'blocks', ns, path + '.json')
-            cache[name] = json.load(open(f, encoding='utf8')) if os.path.exists(f) else None
+            cache[name] = None
+            if os.path.exists(f):
+                with open(f, encoding='utf8') as fh:
+                    cache[name] = json.load(fh)
         b = cache[name]
         if b is None:
             missing_block[name] += count

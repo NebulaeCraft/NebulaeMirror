@@ -1,70 +1,70 @@
-# MirrorDumper (1.12.2 client mod)
+# MirrorDumper（1.12.2 客户端 mod）
 
-Exports everything the 1.21 mirror needs to reproduce **every block's appearance**. It reads models after Minecraft has baked them, so OBJ, Forge v1 blockstates, multipart, custom IBakedModel, and NebulaeCraft's emissive wrapper are all handled the same way, with no per-mod adaptation.
+导出 1.21 镜像还原**每个方块外观**所需的全部数据。它读取的是 Minecraft 烘焙之后的模型，所以 OBJ、Forge v1 blockstate、multipart、自定义 IBakedModel，以及 NebulaeCraft 的自发光包装模型，都用同一种方式处理，不需要针对某个 mod 做适配。
 
-## Where to run it
+## 在哪里运行
 
-The client must be a **real, playable 1.12.2 Forge client**, loading:
+客户端必须是一个**真实可玩的 1.12.2 Forge 客户端**，并加载：
 
-- the **same versions** of every content mod as the origin server (from `data/mods.zip`);
-- the **2.26** NebulaeCraft jar built from source, not the 2.25 one currently on the server;
-- client-side rendering dependencies such as **CTM**, which Chisel needs on the client;
-- `MirrorDumper-1.12.2-<version>.jar` (built output is in `legacy/dumper/build/libs/`).
+- 与原服**版本相同**的所有内容 mod（来自 `data/mods.zip`）；
+- 用源码构建的 **2.26** 版 NebulaeCraft jar，而不是服务器上现在的 2.25；
+- 客户端渲染依赖，例如 **CTM**（Chisel 在客户端需要它）；
+- `MirrorDumper-1.12.2-<版本>.jar`（构建输出在 `legacy/dumper/build/libs/`）。
 
-Leave out server-only plugins and mods: SpongeForge, Nucleus, LuckPerms, Prism, ServerListPlus, Dynmap, and similar.
+不要放服务端专用的插件和 mod：SpongeForge、Nucleus、LuckPerms、Prism、ServerListPlus、Dynmap 等。
 
-## How to run it
+## 如何运行
 
-Either way works:
+两种方式都可以：
 
-1. **Auto mode**: add these JVM arguments in the launcher. The dump runs once the main menu appears, then the game exits:
+1. **自动模式**：在启动器里加上下面的 JVM 参数。主菜单出现后会执行一次 dump，然后游戏退出：
    `-Dmirrordump.auto=true -Dmirrordump.exit=true`
-   Optional: `-Dmirrordump.mods=nebulaecraft,chisel` (only dump these namespaces), `-Dmirrordump.maxStates=4096`.
-2. **In-game command**: in any single-player world, run
+   可选：`-Dmirrordump.mods=nebulaecraft,chisel`（只 dump 这些命名空间）、`-Dmirrordump.maxStates=4096`。
+2. **游戏内命令**：在任意单人世界里执行
    `/mirrordump [mods=a,b] [vanillaModels] [noVanillaTextures] [maxStates=N]`
 
-The game freezes for a few seconds up to a few minutes while it runs. Output goes to `<game dir>/mirrordump/<timestamp>/`; copy it into this repo's `dumps/`.
+运行期间游戏会卡住几秒到几分钟。输出在 `<游戏目录>/mirrordump/<时间戳>/`；把它拷到本仓库的 `dumps/`。
 
-## Re-dumping for Railcraft outfitted tracks (MirrorDumper 1.2, formerly 0.2.1)
+## 为 Railcraft 套件轨道重新 dump（MirrorDumper 1.2，原 0.2.1）
 
-The mirror draws outfitted tracks (turnouts, wyes, buffer stops, boosters, …) from their TileEntity only once the dump contains `extras/railcraft_tracks.json`. Dumps made with 0.1.0 (such as `dumps/full-20261107-145222`) don't have it, and neither does a 0.2.0 dump from a production client: 0.2.0 looked up `TrackType.getName()` by name, but in Railcraft's production jar that method is reobfuscated to `func_176610_l`, so the export failed with `NoSuchMethodException` in `errors.json`. (The dev client remaps it back to `getName`, which hid the bug.) For all of these the generator then warns `dump has no extras/railcraft_tracks.json` and tracks keep the default-kit model. To fill it in, on the machine with the full 1.12 client (`dumps/full` is a symlink to the current full dump, `full-20261107-200107` made with 0.2.1; repoint it after a new dump):
+只有当 dump 里包含 `extras/railcraft_tracks.json` 时，镜像才会根据 TileEntity 绘制套件轨道（道岔、Y 形岔、止冲挡、加速器等）。用 0.1.0 做的 dump（例如 `dumps/full-20261107-145222`）没有这个文件；在正式客户端上用 0.2.0 做的 dump 也没有：0.2.0 按名字查找 `TrackType.getName()`，但在 Railcraft 的正式 jar 里这个方法被重新混淆成了 `func_176610_l`，所以导出失败，`errors.json` 里是 `NoSuchMethodException`。（开发客户端会把它映射回 `getName`，掩盖了这个 bug。）这些情况下生成器都会警告 `dump has no extras/railcraft_tracks.json`，轨道保持默认套件的模型。要补上它，在装有完整 1.12 客户端的机器上操作（`dumps/full` 是指向当前完整 dump 的软链接，即用 0.2.1 做的 `full-20261107-200107`；有了新 dump 之后要重新指向）：
 
-1. Build the dumper here and replace `MirrorDumper-1.12.2-0.1.0.jar` in the client's `mods/` with `legacy/dumper/build/libs/MirrorDumper-1.12.2-1.3.jar` (remove any 0.2.0 or 0.2.1 jar).
-2. Run a full dump as usual (auto mode or `/mirrordump`). Railcraft must be dumped in full: if you pass `mods=`, include `railcraft`. Don't wear the track goggles' aura during `/mirrordump`: the bake reproduces what players normally see, and Railcraft (this server's build) hides kits on electric/high-speed/reinforced rails, except buffer stops, unless that aura is on.
-3. Check the log line `Dump finished: …` and `manifest.json` → `summary.trackKitVariants`. It must not be 0; the Railcraft 12.1.1 pack gives 4214 ( every rail type × kit × shape × state, 1046 distinct models). Railcraft-related problems are logged in `errors.json` under `railcraft:track_outfitted` / stage `trackKits`.
-4. Copy the dump into `dumps/`, re-run the generator (`report.md` counts `tracks.variants` / `tracks.meshes`) and rebuild the mod. No re-import is needed: the client reads the TileEntity data the import already stored.
+1. 在这里构建 dumper，把客户端 `mods/` 里的 `MirrorDumper-1.12.2-0.1.0.jar` 换成 `legacy/dumper/build/libs/MirrorDumper-1.12.2-1.3.jar`（删掉所有 0.2.0 或 0.2.1 的 jar）。
+2. 像平常一样做完整 dump（自动模式或 `/mirrordump`）。Railcraft 必须完整 dump：如果传了 `mods=`，要包含 `railcraft`。执行 `/mirrordump` 时不要开着轨道护目镜的光环：烘焙还原的是玩家平时看到的样子，而 Railcraft（本服的构建）在电气/高速/强化轨道上会隐藏套件（止冲挡除外），除非开着那个光环。
+3. 检查日志里的 `Dump finished: …` 一行，以及 `manifest.json` → `summary.trackKitVariants`。它不能是 0；Railcraft 12.1.1 的模组包是 4214（每种轨道类型 × 套件 × 形状 × 状态，共 1046 个不同的模型）。与 Railcraft 有关的问题记在 `errors.json` 里，位于 `railcraft:track_outfitted` / stage `trackKits` 之下。
+4. 把 dump 拷到 `dumps/`，重新运行生成器（`report.md` 里有 `tracks.variants` / `tracks.meshes` 的计数）并重新构建 mod。不需要重新导入：客户端读取的是导入时已经存下的 TileEntity 数据。
 
-The extra file only adds models; everything else in the dump is unchanged, so a full re-dump with 1.2 (or 0.2.1) replaces the earlier dump one to one. Verified on the modpack client with `20261107-200107`: `trackKitVariants` 4214, no track errors.
+这个额外的文件只是增加了模型；dump 里的其他内容都不变，所以用 1.2（或 0.2.1）完整重做的 dump 可以一对一地替换之前的 dump。已在模组包客户端上用 `20261107-200107` 验证：`trackKitVariants` 为 4214，没有轨道相关的错误。
 
-## Output format (schema 1)
+## 输出格式（schema 1）
 
-| File | Contents |
+| 文件 | 内容 |
 |---|---|
-| `manifest.json` | MC/Forge versions, mod list with versions, options, summary stats |
-| `blocks/index.json` | Every block: file path, state count, flags |
-| `blocks/<ns>/<name>.json` | Properties, meta table (`roundTrip`/`invalid`), `storedProperties`/`derivedProperties`, item subtypes (with `item` id), and for each state: light, opacity, render layers, bounds/collision, whether it has a TE, `drop` (damageDropped) / `pick` (pick-block damage), model references and tint colours |
-| `models/<h0h1>/<sha1>.json` | Baked quads of one (state, render layer), deduplicated by content. Vertices are block-space coordinates plus sprite-relative 0..16 UVs; fields include `cull`, `tint`, `shade`, `emissive` |
-| `textures/<ns>/…png(.mcmeta)` | Original textures at source resolution (CTM mcmeta references are followed). Sprites generated at runtime (e.g. Railcraft's `*_0..N`) are read back from the atlas |
-| `sprites.json` | Size, frame count and source of each sprite (`copied`/`atlas`/`missing`/`vanilla-skipped`) |
-| `lang/<ns>/{en_us,zh_cn}.lang` | Language files for each namespace |
-| `biomes.json` | Biome temperature, rainfall and grass/foliage/water colours |
-| `extras/railcraft_tracks.json` | (1.2+, formerly 0.2.1+) Railcraft outfitted tracks: the composite model baked for every rail type × kit × shape × kit render state, keyed `<rail>\|<kit>\|<shape>\|<state>` with the TileEntity's own NBT names, each with the same `ao`/`particle`/`layers` refs as a state's `model`. Written only when Railcraft is loaded and dumped in full |
-| `errors.json` | Every exception, by block, state and stage |
+| `manifest.json` | MC/Forge 版本、带版本号的 mod 列表、选项、摘要统计 |
+| `blocks/index.json` | 所有方块：文件路径、状态数、标志 |
+| `blocks/<ns>/<name>.json` | 属性、meta 表（`roundTrip`/`invalid`）、`storedProperties`/`derivedProperties`、物品子类型（带 `item` id），以及每个状态的：亮度、不透明度、渲染层、包围盒/碰撞、是否有 TE、`drop`（damageDropped）/ `pick`（中键选取的 damage）、模型引用和染色颜色 |
+| `models/<h0h1>/<sha1>.json` | 某个（状态, 渲染层）烘焙后的 quad，按内容去重。顶点是方块空间坐标加上相对于 sprite 的 0..16 UV；字段包括 `cull`、`tint`、`shade`、`emissive` |
+| `textures/<ns>/…png(.mcmeta)` | 原始分辨率的原贴图（会跟随 CTM mcmeta 里的引用）。运行时生成的 sprite（例如 Railcraft 的 `*_0..N`）从图集里读回 |
+| `sprites.json` | 每个 sprite 的尺寸、帧数和来源（`copied`/`atlas`/`missing`/`vanilla-skipped`） |
+| `lang/<ns>/{en_us,zh_cn}.lang` | 每个命名空间的语言文件 |
+| `biomes.json` | 生物群系的温度、降雨量，以及草/树叶/水的颜色 |
+| `extras/railcraft_tracks.json` | （1.2+，原 0.2.1+）Railcraft 套件轨道：为每种轨道类型 × 套件 × 形状 × 套件渲染状态烘焙出的组合模型，键为 `<rail>\|<kit>\|<shape>\|<state>`，使用 TileEntity 自己的 NBT 名称，每项带有与状态的 `model` 相同的 `ao`/`particle`/`layers` 引用。只有加载了 Railcraft 并完整 dump 时才会写出 |
+| `errors.json` | 所有异常，按方块、状态和阶段记录 |
 
-By default `minecraft:*` blocks only get properties and the meta table, with no quads exported. The mirror uses 1.21's own vanilla assets, and vanilla blocks are converted by DFU. The vanilla textures that modded models reference are copied by default (`noVanillaTextures` turns this off). The generator prefers the renamed 1.21 texture and only falls back to these 1.12 PNGs when there is no 1.21 equivalent.
+默认情况下，`minecraft:*` 方块只导出属性和 meta 表，不导出 quad。镜像使用 1.21 自己的原版资源，原版方块由 DFU 转换。mod 模型引用到的原版贴图默认会被复制（`noVanillaTextures` 可关闭）。生成器优先使用改名后的 1.21 贴图，只有在 1.21 没有对应贴图时才回退到这些 1.12 的 PNG。
 
-## What's been verified (NebulaeCraft dev environment, NebulaeCraft 2.26 + Railcraft)
+## 已验证的内容（NebulaeCraft 开发环境，NebulaeCraft 2.26 + Railcraft）
 
-- 851 blocks / 18,341 states / 6,053 models, 0 errors, 4.6 s.
-- Meta encodings match the source: horizontal facing `meta=index-2`; tdt `range<<2|horizontalIndex`.
-- Pane connection properties are classified as `derivedProperties`.
-- The OBJ fire extinguisher box baked to 56 quads.
-- The lamp's glowing faces are flagged `emissive`.
-- Railcraft's runtime-split sprites read back from the atlas match the source sheet tiles exactly.
+- 851 个方块 / 18,341 个状态 / 6,053 个模型，0 个错误，4.6 秒。
+- meta 编码与源码一致：水平朝向 `meta=index-2`；tdt 为 `range<<2|horizontalIndex`。
+- 玻璃板的连接属性被归类为 `derivedProperties`。
+- OBJ 的灭火器箱烘焙出 56 个 quad。
+- 灯具的发光面带有 `emissive` 标记。
+- Railcraft 运行时切分的 sprite 从图集读回后，与原图集里的瓦片完全一致。
 
-## Known gaps (to be covered by other components)
+## 已知缺口（由其他组件补上）
 
-- `roadmark_text` has no quads; it is drawn entirely by a TESR, which will be ported in P1.
-- Chisels&Bits / ArchitectureCraft / Railcraft tank appearances depend on TE data; the dump only contains their base models. Railcraft outfitted tracks are the exception: 1.2 (0.2.1) bakes their TE-driven variants into `extras/railcraft_tracks.json`.
-- For CTM blocks only the base (unconnected) quads are exported; connection rules stay in the copied mcmeta.
-- There are still 1106 `nebulaecraft:device_apple_iphone` and 1 `nebulaecraft:countdown` in the world. Both were removed from NebulaeCraft long ago (absent from 2.25 and 2.26), and the origin's FML registry still reserves their IDs. The mirror treats them as unknown blocks and passes them through unchanged.
+- `roadmark_text` 没有 quad；它完全由 TESR 绘制，将在 P1 里移植。
+- Chisels&Bits / ArchitectureCraft / Railcraft 储罐的外观取决于 TE 数据；dump 里只有它们的基础模型。Railcraft 套件轨道是例外：1.2（0.2.1）会把它们由 TE 决定的变体烘焙进 `extras/railcraft_tracks.json`。
+- 对 CTM 方块只导出基础（未连接）的 quad；连接规则保留在复制过来的 mcmeta 里。
+- 世界里仍有 1106 个 `nebulaecraft:device_apple_iphone` 和 1 个 `nebulaecraft:countdown`。两者很久以前就从 NebulaeCraft 里移除了（2.25 和 2.26 都没有），而原服的 FML 注册表仍然保留着它们的 ID。镜像把它们当作 unknown 方块，原样传递。

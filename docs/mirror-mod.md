@@ -1,12 +1,12 @@
-# Mirror mod (Fabric 1.21.1)
+# 镜像 mod（Fabric 1.21.1）
 
-`mirror/mod/` registers every modded block from the generator output in 1.21.1. **Both server and client need it.** The generator output (`work/gen`) is bundled into the jar at build time; when it changes, rebuild the jar and redistribute it.
+`mirror/mod/` 把生成器输出里的每个 mod 方块注册到 1.21.1。**服务端和客户端都要安装。** 生成器输出（`work/gen`）在构建时打包进 jar；输出变了就要重新构建并重新分发 jar。
 
-Clients should also install **Continuity** (3.0.0+1.21, Fabric) for Chisel's connected, patterned and random textures; the jar ships the converted rules (see [generator.md](generator.md)). Without Continuity those blocks show their unconnected texture. The dev client runs with Continuity; pass `-PnoContinuity` to compare without it.
+客户端还应安装 **Continuity**（3.0.0+1.21，Fabric），用于 Chisel 的连接、图案和随机贴图；转换好的规则已随 jar 提供（见 [generator.md](generator.md)）。没有 Continuity 时，这些方块显示未连接的贴图。开发客户端默认带 Continuity；加 `-PnoContinuity` 可以对比不带它的效果。
 
-## Build and test
+## 构建与测试
 
-Requires Java 21+ (the local Java 25 works; it compiles with `--release 21`):
+需要 Java 21+（本机的 Java 25 可用；编译时使用 `--release 21`）：
 
 ```bash
 python3 -I mirror/generator/generate.py --dump dumps/full
@@ -16,44 +16,44 @@ python3 -I mirror/generator/generate.py --dump dumps/full
 cd mirror/mod && ./gradlew build
 ```
 
-The output is `mirror/mod/build/libs/NebulaeMirror-1.21.1-<version>.jar`. Pass a different generator output directory with `-PgenDir=...`.
+输出是 `mirror/mod/build/libs/NebulaeMirror-1.21.1-<版本>.jar`。用 `-PgenDir=...` 可以指定别的生成器输出目录。
 
-Self-test (opens a game window and exits automatically, about 20 seconds):
+自检（会打开游戏窗口并自动退出，约 20 秒）：
 
 ```bash
 cd mirror/mod && ./gradlew runSelftestClient
 ```
 
-It writes into `mirror/mod/run/selftest/`:
+它会写入 `mirror/mod/run/selftest/`：
 
-- `nebulaemirror-selftest.json`: how many block states and items got a mesh model, and the list of missing ones;
-- `nebulaemirror-icons/<mod>.png`: every creative subtype rendered isometrically, one sheet per source mod, for comparing against the 1.12 game.
+- `nebulaemirror-selftest.json`：有多少方块状态和物品拿到了 mesh 模型，以及缺失的列表；
+- `nebulaemirror-icons/<mod>.png`：每个创造模式子类型的等轴测渲染图，每个来源 mod 一张，用于和 1.12 游戏对比。
 
-## How it works
+## 工作原理
 
-| Part | Description |
+| 部分 | 说明 |
 |---|---|
-| Block registration | Reads `blocks.json`. Archetype blocks subclass the vanilla behaviour class (`StairBlock`/`IronBarsBlock`/`FenceBlock`/`WallBlock`/`FenceGateBlock`/`DoorBlock`/`TrapDoorBlock`), so 1.21 recomputes connections and stair shapes; their extra 1.12 properties are appended. Everything else is `MirrorBlock`: properties match 1.12, per-state shapes, light and collision come from the dump, and `direction`/`axis` properties take part in rotation and mirroring (WorldEdit/Axiom transforms). Definitions are validated before any block is constructed, so one bad definition only skips that block |
-| Properties | bool/int/direction/axis use vanilla property types; other enums use `StringProperty` |
-| Items and creative tabs | One tab per source mod. Each 1.12 item subtype becomes an item stack with the `block_state` component (placing it gives that subtype) and its original name. States that can't be written back are hidden. Players can hide tabs and choose their icons in the client config, see [creative-tabs.md](creative-tabs.md) |
-| Models | `PreparableModelLoadingPlugin` reads `assets/nebulaemirror/meshes/*.json` and bakes them with the Fabric Renderer API: per-quad blend mode (solid/cutout/translucent), emissive (full brightness, no shading, no AO), and vanilla-path quads derived for renderers without FRAPI. Sodium 0.6+ implements FRAPI |
-| Tints | grass/foliage follow the biome; constant colours are fixed; `state` colours vary per state (Railcraft's 16-colour posts, tanks, glass and so on) |
-| `nebulaemirror:legacy` BlockEntity | Generic blocks that had a TileEntity in 1.12, plus `nebulaemirror:unknown`, keep the original NBT unchanged (`Legacy` tag) and sync it to clients for P1 renderers (see [legacy-renderers.md](legacy-renderers.md)). Most are meshed with their chunk; only text blocks use a block-entity renderer, and a client mixin hides that renderer from all other legacy block entities |
-| `nebulaemirror:unknown` | Placeholder for unmapped 1.12 blocks; its data is preserved for write-back |
-| Incremental sync | `sync/` package: the `/nebulaemirror sync ...` commands, the timer, change detection and live/disk application, see [sync.md](sync.md). Server side only; the common mixin `ChunkMapAccessor` lets it tell whether a chunk is in memory |
-| Commands | Everything is under `/nebulaemirror`: `sync ...` ([sync.md](sync.md)), `zone ...` ([writeback.md](writeback.md)), `chat status` ([chat.md](chat.md)), `stats` ([mod-updates.md](mod-updates.md)). `/nm` is the short form (mod 1.6+): a redirect to the same tree, so `/nm zone list` is `/nebulaemirror zone list` with the same permission nodes and tab completion. It works for players, the console and RCON. If another mod already owns `/nm`, the short form is not registered and the log says so |
-| Zone boundaries | Checked-out zones are outlined on every client (mod 1.7+), cyan for the player's own and yellow for others': the server sends the zone boxes (`writeback/ZoneOutlines`), `client/ZoneOutlineRenderer` draws them, see [writeback.md](writeback.md#zone-boundaries-in-game) |
-| WorldEdit aliases | `worldedit/` package: FAWE-style short commands (`//s` → `//set`, ...) that re-run the full WorldEdit command; list in `config/nebulaemirror-we-aliases.json`, see [worldedit-aliases.md](worldedit-aliases.md) |
+| 方块注册 | 读取 `blocks.json`。原型（archetype）方块继承原版行为类（`StairBlock`/`IronBarsBlock`/`FenceBlock`/`WallBlock`/`FenceGateBlock`/`DoorBlock`/`TrapDoorBlock`），因此连接和楼梯形状由 1.21 重新计算；它们额外的 1.12 属性会追加上去。其余都是 `MirrorBlock`：属性与 1.12 一致，每个状态的形状、亮度和碰撞来自 dump，`direction`/`axis` 属性参与旋转和镜像（WorldEdit/Axiom 的变换）。所有定义在构造方块之前先校验，所以一个坏定义只会跳过那一个方块 |
+| 属性 | bool/int/direction/axis 使用原版属性类型；其他枚举使用 `StringProperty` |
+| 物品与创造模式标签页 | 每个来源 mod 一个标签页。每个 1.12 物品子类型变成一个带 `block_state` 组件的物品堆（放置后得到该子类型），并保留原名。无法写回的状态会被隐藏。玩家可以在客户端配置里隐藏标签页、选择图标，见 [creative-tabs.md](creative-tabs.md) |
+| 模型 | `PreparableModelLoadingPlugin` 读取 `assets/nebulaemirror/meshes/*.json`，用 Fabric Renderer API 烘焙：每个 quad 的混合模式（solid/cutout/translucent）、自发光（全亮、无着色、无 AO），并为不支持 FRAPI 的渲染器派生出原版路径的 quad。Sodium 0.6+ 实现了 FRAPI |
+| 染色 | 草/树叶跟随生物群系；固定颜色不变；`state` 颜色按状态变化（Railcraft 的 16 色立柱、储罐、玻璃等） |
+| `nebulaemirror:legacy` 方块实体 | 在 1.12 里带 TileEntity 的普通方块，以及 `nebulaemirror:unknown`，都原样保留原始 NBT（`Legacy` 标签），并同步给客户端供 P1 渲染器使用（见 [legacy-renderers.md](legacy-renderers.md)）。大多数随区块一起生成 mesh；只有文字方块使用方块实体渲染器，客户端有一个 mixin 让其他旧版方块实体不走这个渲染器 |
+| `nebulaemirror:unknown` | 未映射的 1.12 方块的占位方块；其数据保留下来用于写回 |
+| 增量同步 | `sync/` 包：`/nebulaemirror sync ...` 命令、定时器、变更检测，以及对在线世界/磁盘的应用，见 [sync.md](sync.md)。仅服务端；通用 mixin `ChunkMapAccessor` 用来判断区块是否在内存里 |
+| 命令 | 全部在 `/nebulaemirror` 之下：`sync ...`（[sync.md](sync.md)）、`zone ...`（[writeback.md](writeback.md)）、`chat status`（[chat.md](chat.md)）、`stats`（[mod-updates.md](mod-updates.md)）。`/nm` 是短写（mod 1.6+）：它重定向到同一棵命令树，所以 `/nm zone list` 就是 `/nebulaemirror zone list`，权限节点和 Tab 补全都相同。玩家、控制台和 RCON 都能用。如果别的 mod 已经占用了 `/nm`，短写不会注册，日志里会说明 |
+| 区域边界 | 签出的区域会在每个客户端上描边（mod 1.7+），自己的为青色，他人的为黄色：服务端发送区域的包围盒（`writeback/ZoneOutlines`），`client/ZoneOutlineRenderer` 负责绘制，见 [writeback.md](writeback.md#游戏内的区域边界) |
+| WorldEdit 别名 | `worldedit/` 包：FAWE 风格的短命令（`//s` → `//set` 等），实际执行完整的 WorldEdit 命令；列表在 `config/nebulaemirror-we-aliases.json`，见 [worldedit-aliases.md](worldedit-aliases.md) |
 
-## Current results (full modpack dump)
+## 当前结果（完整模组包 dump）
 
-- 1373 blocks registered in 0.6 s (81 stairs, 23 panes, 2 fences, 1 fence gate, 1 door, 1265 generic). 128 blocks are mapped onto 1.21 vanilla blocks through overrides and don't need registering.
-- 14,750 meshes; **all 47,435 block states and all 1373 items have mesh models** (346 states are intentionally empty: C&B, roadmark_text, MoarSigns, drawn from TE data); 1.23 million quads. The self-test looks through wrapping models such as Continuity's.
-- In the icon sheets, NebulaeCraft (road markings, signs, traffic lights, screen doors, lamps), Quark, Railcraft (including the 16-colour variants), Sakura and others look right.
+- 注册 1373 个方块用时 0.6 秒（81 个楼梯、23 个玻璃板类、2 个栅栏、1 个栅栏门、1 个门、1265 个普通方块）。另有 128 个方块通过 override 映射到 1.21 原版方块，不需要注册。
+- 14,750 个 mesh；**全部 47,435 个方块状态和全部 1373 个物品都有 mesh 模型**（其中 346 个状态是故意留空的：C&B、roadmark_text、MoarSigns，它们根据 TE 数据绘制）；共 123 万个 quad。自检能看穿 Continuity 这类包装模型。
+- 图标图里，NebulaeCraft（道路标线、标志、交通灯、屏蔽门、灯具）、Quark、Railcraft（包括 16 色变种）、Sakura 等看起来都正确。
 
-## Known limitations (planned for later phases)
+## 已知限制（计划在后续阶段处理）
 
-- Item icons show only each block's default subtype; in-world placement is correct.
-- TileEntity-driven looks are covered by P1 ([legacy-renderers.md](legacy-renderers.md)). Railcraft outfitted tracks draw their kit from TE data once the dump has `extras/railcraft_tracks.json` (MirrorDumper 1.2 / 0.2.1); with an older dump they keep the static default-kit model. Still from the static model: Quark coloured flowerpot contents.
-- MoarSigns item icons are empty (1.12 drew them with the TESR too).
-- Vanilla blocks need nothing from this mod: the importer converts them with DFU.
+- 物品图标只显示每个方块的默认子类型；放置到世界里是正确的。
+- 由 TileEntity 决定的外观由 P1 处理（[legacy-renderers.md](legacy-renderers.md)）。只要 dump 里有 `extras/railcraft_tracks.json`（MirrorDumper 1.2 / 0.2.1），Railcraft 套件轨道就会根据 TE 数据绘制套件；用更旧的 dump 时保持静态的默认套件模型。仍然使用静态模型的还有：Quark 彩色花盆里的内容。
+- MoarSigns 的物品图标是空的（1.12 里也是用 TESR 画的）。
+- 原版方块不需要这个 mod 做任何事：导入器用 DFU 转换它们。

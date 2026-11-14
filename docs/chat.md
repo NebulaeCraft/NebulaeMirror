@@ -1,12 +1,12 @@
-# Chat sync (origin ⇄ mirror)
+# 聊天同步（原服 ⇄ 镜像）
 
-Player chat, joins and leaves are shown on the other server. Everything is configured on the **mirror**, in the `chat` section of `config/nebulaemirror-sync.json`. The origin's bridge mod (1.3 or later, formerly 0.3.0, see [bridge.md](bridge.md)) only relays and has no settings of its own.
+玩家的聊天、加入和离开会显示在另一台服务器上。所有设置都在**镜像**上，位于 `config/nebulaemirror-sync.json` 的 `chat` 段。原服的 bridge mod（1.3 或更高，即原 0.3.0，见 [bridge.md](bridge.md)）只负责转发，自身没有任何设置。
 
-## Setup
+## 配置步骤
 
-1. Install bridge 1.3 or later on the origin (`legacy/bridge/build/libs/MirrorBridge-1.12.2-1.4.jar`) and restart it.
-2. Fill in `bridge.url`/`bridge.token` in the mirror's sync config, as for write-back. Chat sync does not need `source`, so it also works with sync switched off.
-3. Set `chat.enabled` to `true`, then run `/nebulaemirror sync reload` (no restart needed). The first start of the new mirror mod adds the `chat` section with the defaults below, switched off.
+1. 在原服安装 bridge 1.3 或更高版本（`legacy/bridge/build/libs/MirrorBridge-1.12.2-1.4.jar`）并重启。
+2. 在镜像的同步配置里填好 `bridge.url`/`bridge.token`，和写回一样。聊天同步不需要 `source`，所以关闭同步时也能用。
+3. 把 `chat.enabled` 设为 `true`，然后执行 `/nebulaemirror sync reload`（不需要重启）。新版镜像 mod 首次启动时会添加 `chat` 段，内容是下面的默认值，处于关闭状态。
 
 ```json
 "chat": {
@@ -26,45 +26,45 @@ Player chat, joins and leaves are shown on the other server. Everything is confi
 }
 ```
 
-| Field | Meaning |
+| 字段 | 含义 |
 |---|---|
-| `enabled` | Master switch |
-| `shownOnOrigin` | What mirror players do, as shown on the origin. `enabled: false` turns off this direction |
-| `shownOnMirror` | What origin players do, as shown on the mirror. `enabled: false` turns off this direction |
-| `chat` / `join` / `leave` | Templates. An empty string means that kind of message is not synced |
+| `enabled` | 总开关 |
+| `shownOnOrigin` | 镜像玩家的动作在原服上的显示方式。`enabled: false` 关闭这个方向 |
+| `shownOnMirror` | 原服玩家的动作在镜像上的显示方式。`enabled: false` 关闭这个方向 |
+| `chat` / `join` / `leave` | 模板。空字符串表示不同步这一类消息 |
 
-Templates:
-- Placeholders: `{player}` (player name) and `{message}` (chat text; empty for join/leave).
-- Codes: `&0`–`&9`, `&a`–`&f` colours, `&k` obfuscated, `&l` bold, `&m` strikethrough, `&n` underline, `&o` italic, `&r` reset. As in vanilla, a colour code also ends bold/italic/etc. `&#RRGGBB` works on the mirror. On the 1.12 origin it becomes `&r`, since 1.12 has no hex colours.
-- Codes only apply to the template. A player who types `&c` sees `&c`, not red text.
-- If you write a direction yourself and leave out a template, it is empty, which means that kind is not synced. The mirror writes the missing keys back into the file on the next load, so you can see them.
+模板：
+- 占位符：`{player}`（玩家名）和 `{message}`（聊天内容；加入/离开时为空）。
+- 格式代码：`&0`–`&9`、`&a`–`&f` 颜色，`&k` 乱码，`&l` 粗体，`&m` 删除线，`&n` 下划线，`&o` 斜体，`&r` 重置。和原版一样，颜色代码会同时结束粗体/斜体等样式。`&#RRGGBB` 在镜像上可用；在 1.12 原服上它会变成 `&r`，因为 1.12 没有十六进制颜色。
+- 格式代码只对模板生效。玩家输入 `&c` 时，对方看到的是 `&c`，而不是红色文字。
+- 如果你自己写了某个方向但漏掉了某个模板，它就是空的，也就是不同步那一类消息。镜像在下次加载时会把缺少的键写回文件，方便你看到。
 
-`/nebulaemirror chat status` (or `/nm chat status`; permission `nebulaemirror.sync.status`, level 2) shows whether each direction is on, the message counts, and the last error.
+`/nebulaemirror chat status`（或 `/nm chat status`；权限 `nebulaemirror.sync.status`，等级 2）显示每个方向是否开启、消息计数和最近一次错误。
 
-## How it works
+## 工作原理
 
-The mirror always connects to the bridge, never the other way round, using the same token and HTTP API as write-back.
+始终是镜像去连接 bridge，不会反过来；使用与写回相同的 token 和 HTTP API。
 
-- **Mirror → origin**: each chat message, join or leave on the mirror is formatted with `shownOnOrigin` and posted to `POST /v1/chat/say`. One sender thread keeps the order. The bridge shows the text to every player and logs it to the console without codes.
-- **Origin → mirror**: the bridge keeps the last 200 chat messages, joins and leaves in memory. The mirror long-polls `GET /v1/chat` (up to 25 s per request) and broadcasts what arrives, formatted with `shownOnMirror`, as system messages.
-- Relayed messages are system messages on both sides. Chat events don't see them, so nothing echoes back.
-- Origin chat is captured at the lowest priority, and cancelled chat (for example from a mute) is skipped.
+- **镜像 → 原服**：镜像上的每条聊天、加入或离开按 `shownOnOrigin` 格式化后，发到 `POST /v1/chat/say`。单个发送线程保证顺序。bridge 把文字显示给所有玩家，并去掉格式代码后记到控制台。
+- **原服 → 镜像**：bridge 在内存里保留最近 200 条聊天、加入和离开。镜像长轮询 `GET /v1/chat`（每次请求最长 25 秒），把收到的内容按 `shownOnMirror` 格式化后作为系统消息广播。
+- 转发的消息在两边都是系统消息。聊天事件看不到它们，所以不会产生回声。
+- 原服的聊天以最低优先级捕获，被取消的聊天（例如被禁言）会被跳过。
 
-## Failures
+## 故障情况
 
-- **Bridge unreachable**: the mirror logs one warning and keeps retrying (backoff 5 s up to 60 s). It logs again when the bridge is back. Mirror messages sent meanwhile are dropped, not queued.
-- **Bridge restarted**: the mirror shows what happened at the origin since the restart, as long as it fits in the 200-entry buffer. Nothing from before the restart is shown twice.
-- **Mirror restarted or reloaded**: it starts from the origin's current position. Origin chat from while the mirror was down is not replayed.
-- **Bridge older than 1.3 (0.3.0)**: the mirror logs that the bridge needs updating and stops polling until the next `sync reload`.
+- **连不上 bridge**：镜像记录一条警告并持续重试（退避间隔从 5 秒到 60 秒）。bridge 恢复时会再记一条日志。这期间镜像发出的消息被丢弃，不会排队。
+- **bridge 重启**：只要还在 200 条的缓冲区内，镜像会显示重启之后原服发生的事情。重启之前的内容不会重复显示。
+- **镜像重启或重新加载**：从原服当前的位置开始。镜像停机期间原服的聊天不会补发。
+- **bridge 版本低于 1.3（0.3.0）**：镜像记录一条日志说明 bridge 需要更新，并停止轮询，直到下一次 `sync reload`。
 
-## Verification (dev servers, 2026-11-08)
+## 验证（开发服务器，2026-11-08）
 
-Setup: the mirror dev server (`run/p2`) and the Forge 1.12.2 dev server with bridge 0.3.0, on one machine. Test players were mineflayer bots (offline mode): a 1.12.2 bot on the origin and a 1.21.1 bot on the mirror.
+环境：镜像开发服务器（`run/p2`）和装了 bridge 0.3.0 的 Forge 1.12.2 开发服务器，在同一台机器上。测试玩家是 mineflayer 机器人（离线模式）：原服上一个 1.12.2 机器人，镜像上一个 1.21.1 机器人。
 
-- Join and leave in both directions, with the default formats.
-- Chat in both directions, including Chinese text. A typed `&c` stayed literal on the other side.
-- After changing `shownOnMirror.chat` and running `sync reload`, the new format applied at once. `chat.enabled: false` + reload stopped both directions.
-- Bridge stopped: one warning on the mirror. Bridge restarted: "receiving from the origin again". The join and chat that happened after the restart arrived, and nothing earlier was repeated.
-- `curl` against the bridge: a wrong token gave 401, empty text gave 400, and `since=-1` returned the current position with no events.
+- 两个方向的加入和离开，使用默认格式。
+- 两个方向的聊天，包括中文。输入的 `&c` 在另一边保持原样。
+- 修改 `shownOnMirror.chat` 并执行 `sync reload` 后，新格式立即生效。`chat.enabled: false` + reload 后两个方向都停止。
+- 停掉 bridge：镜像上出现一条警告。重启 bridge：出现「receiving from the origin again」。重启之后发生的加入和聊天都送达了，更早的内容没有重复。
+- 用 `curl` 访问 bridge：错误的 token 返回 401，空文本返回 400，`since=-1` 返回当前位置且不带事件。
 
-**Not tested here** (test on the real origin first): SpongeForge with the origin's chat and mute plugins. Check that a muted player's chat is not relayed, and that chat prefixes from a chat plugin don't matter: the relay uses the raw message and its own template. The mirror-side colours were checked by unit tests (`ChatFormatTest`), not on a real 1.21 client.
+**此处未测试**（请先在真实原服上测试）：带有原服聊天插件和禁言插件的 SpongeForge。需要确认被禁言玩家的聊天不会被转发，以及聊天插件加的前缀不会造成影响：转发使用的是原始消息和它自己的模板。镜像一侧的颜色是用单元测试（`ChatFormatTest`）检查的，没有在真实的 1.21 客户端上看过。
