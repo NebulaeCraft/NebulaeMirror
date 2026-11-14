@@ -98,6 +98,8 @@ Example `config/nebulaemirror-sync.json` on Windows:
 
 ## Commands (permission level 2; also usable over the mirror's RCON)
 
+`/nm` is the short form of `/nebulaemirror` (mod 1.6+): `/nm sync status`, `/nm sync now`, …
+
 | Command | Action |
 |---|---|
 | `/nebulaemirror sync status` | Config summary, progress of the current run, result of the last run |

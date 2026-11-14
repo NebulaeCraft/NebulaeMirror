@@ -18,12 +18,13 @@ The full design is in the approved technical plan (overall architecture, sync mo
   - [x] step 3: zone lock at the origin (Forge events + FAWE mask), local HTTP API with token, `zone submit` with round-trip check, LuckPerms permission nodes
 - [x] Chat sync: chat, joins and leaves both ways through the bridge, formats and switches in the mirror's sync config, see [docs/chat.md](docs/chat.md)
 - [x] WorldEdit short commands (`//s`, `//r`, `//c`, …, configurable), see [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
+- [x] `/nm` short form of every `/nebulaemirror` command (`/nm zone checkout`, `/nm sync status`, …), see [docs/mirror-mod.md](docs/mirror-mod.md)
 - [x] Client config for creative tabs (hide per mod, choose the icon), see [docs/creative-tabs.md](docs/creative-tabs.md)
 - [x] Update guide for when the origin's mods change (blocks added, removed or changed), see [docs/mod-updates.md](docs/mod-updates.md)
 
 ## Versions
 
-All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). Since then: mirror mod 1.3 (creative tab config); mirror mod 1.4, bridge 1.4, dumper 1.3 (all in-game messages in Chinese). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
+All three mods use two-part versions `1.x`; every release bumps the minor number. The renumbering on 2026-11-08 kept each mod's minor number: mirror mod 1.2 (was 0.1.0, plus the WorldEdit short commands), bridge 1.3 (same code as 0.3.0), dumper 1.2 (same code as 0.2.1). Since then: mirror mod 1.3 (creative tab config); mirror mod 1.4, bridge 1.4, dumper 1.3 (all in-game messages in Chinese); mirror mod 1.5 (WorldEdit `//pos2` outside checked-out zones); mirror mod 1.6 (`/nm` short form of `/nebulaemirror`). The version is set in `mirror/mod/gradle.properties` (`mod_version`), and for the Forge mods in `build.gradle` together with the `VERSION` constant in `MirrorBridge` / `MirrorDumper`.
 
 ## Layout
 

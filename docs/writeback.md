@@ -30,7 +30,7 @@ Without `bridge`, checkout does not lock the origin (it says so) and `submit` is
 
 ## Commands and permission nodes
 
-Nodes are checked through fabric-permissions-api, so LuckPerms-Fabric manages them. Without a permissions mod each falls back to the operator level shown.
+Nodes are checked through fabric-permissions-api, so LuckPerms-Fabric manages them. Without a permissions mod each falls back to the operator level shown. Every command below is under `/nebulaemirror`, or `/nm` for short (mod 1.6+): `/nm zone checkout <name>`, `/nm zone submit <name>`, … with the same nodes.
 
 | Command | Node (fallback level) | Action |
 |---|---|---|

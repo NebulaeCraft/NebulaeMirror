@@ -39,7 +39,7 @@ Templates:
 - Codes only apply to the template. A player who types `&c` sees `&c`, not red text.
 - If you write a direction yourself and leave out a template, it is empty, which means that kind is not synced. The mirror writes the missing keys back into the file on the next load, so you can see them.
 
-`/nebulaemirror chat status` (permission `nebulaemirror.sync.status`, level 2) shows whether each direction is on, the message counts, and the last error.
+`/nebulaemirror chat status` (or `/nm chat status`; permission `nebulaemirror.sync.status`, level 2) shows whether each direction is on, the message counts, and the last error.
 
 ## How it works
 

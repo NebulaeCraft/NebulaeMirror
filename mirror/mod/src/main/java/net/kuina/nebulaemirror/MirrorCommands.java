@@ -2,7 +2,10 @@ package net.kuina.nebulaemirror;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.kuina.nebulaemirror.block.LegacyBlockEntity;
 import net.kuina.nebulaemirror.sync.SyncCommands;
@@ -33,14 +36,39 @@ import java.util.TreeMap;
  * /nebulaemirror sync ...: see {@link SyncCommands}; /nebulaemirror zone ...: see {@link ZoneCommands}.
  * /nebulaemirror chat status: chat sync with the origin (docs/chat.md; configured with the sync config, applied by
  * sync reload).
+ * /nm is the short form of /nebulaemirror: the same tree through a redirect (/nm zone list, /nm sync status, ...).
  */
 public final class MirrorCommands {
+    public static final String ROOT = "nebulaemirror";
+    public static final String SHORT = "nm";
+
     private MirrorCommands() {
     }
 
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> dispatcher.register(
-                Commands.literal("nebulaemirror")
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> {
+            LiteralCommandNode<CommandSourceStack> root = dispatcher.register(tree());
+            if (!alias(dispatcher, SHORT, root)) {
+                NebulaeMirror.LOG.warn("/{} is already a command; only /{} is available", SHORT, ROOT);
+            }
+        });
+    }
+
+    /**
+     * Registers {@code alias} as a redirect to {@code target}, the way vanilla does /tp → /teleport: every
+     * sub-command, permission check and tab completion is the target's own. Returns false, and registers nothing,
+     * when the name is already taken.
+     */
+    static <S> boolean alias(CommandDispatcher<S> dispatcher, String alias, LiteralCommandNode<S> target) {
+        if (dispatcher.getRoot().getChild(alias) != null) {
+            return false;
+        }
+        dispatcher.register(LiteralArgumentBuilder.<S>literal(alias).requires(target.getRequirement()).redirect(target));
+        return true;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> tree() {
+        return Commands.literal(ROOT)
                         .then(SyncCommands.tree())
                         .then(ZoneCommands.tree())
                         .then(Commands.literal("chat").then(Commands.literal("status")
@@ -59,7 +87,7 @@ public final class MirrorCommands {
                                                                         IntegerArgumentType.getInteger(ctx, "x1"),
                                                                         IntegerArgumentType.getInteger(ctx, "z1"),
                                                                         IntegerArgumentType.getInteger(ctx, "x2"),
-                                                                        IntegerArgumentType.getInteger(ctx, "z2"))))))))));
+                                                                        IntegerArgumentType.getInteger(ctx, "z2"))))))));
     }
 
     private static int stats(CommandSourceStack src, int x1, int z1, int x2, int z2) {
