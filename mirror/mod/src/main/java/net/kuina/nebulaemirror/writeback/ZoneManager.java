@@ -48,6 +48,8 @@ import java.util.stream.Stream;
  *   <li>abandon: unlock at the origin, drop the zone, refresh it so the mirror shows the origin again.</li>
  * </ul>
  * Closed zones are kept under {@code zones/_closed/<name>-<time>/}.
+ * <p>
+ * Clients draw the boundary of every active zone; {@link ZoneOutlines} is told whenever {@code active} changes.
  */
 public final class ZoneManager {
     public static final long MAX_VOLUME = 256L * 256 * 256;
@@ -275,6 +277,7 @@ public final class ZoneManager {
             z.checkedOut = java.time.OffsetDateTime.now().toString();
             save(z);
             active.put(z.name, z);
+            ZoneOutlines.broadcast(server);
             NebulaeMirror.LOG.info("Zones: checked out {} for {} ({} blocks, snapshot in {} ms)", z, z.owner,
                     ZoneSnapshot.volume(z.box()), System.currentTimeMillis() - t0);
             return "区域 " + z + " 已签出：编辑完成后执行 /nebulaemirror zone lint " + z.name;
@@ -410,6 +413,7 @@ public final class ZoneManager {
         // Applied (and unlocked) at the origin: release the zone and check the round trip.
         z.locked = false;
         active.remove(z.name);
+        ZoneOutlines.broadcast(server);
         pending.put(z.name, z); // keeps name and area reserved until the round trip is checked
         String applied = "原服任务 " + job + " 已写入 " + rep.get("changed").getAsInt() + " 个方块"
                 + (rep.get("verifyMismatches").getAsInt() > 0 ? "，原服回读时有 " + rep.get("verifyMismatches").getAsInt()
@@ -479,7 +483,9 @@ public final class ZoneManager {
     /** Moves the zone's files to zones/_closed/ and returns {@code message}. */
     private String close(Zone z, String message, JsonObject verify) {
         z.busy = false;
-        active.remove(z.name);
+        if (active.remove(z.name) != null) {
+            ZoneOutlines.broadcast(server);
+        }
         pending.remove(z.name);
         try {
             if (verify != null) {
@@ -509,6 +515,7 @@ public final class ZoneManager {
         }
         unlockQuietly(z);
         active.remove(z.name);
+        ZoneOutlines.broadcast(server);
         deleteDir(dir(z.name));
         SyncService sync = SyncService.get();
         if (sync == null || !sync.ready()) {

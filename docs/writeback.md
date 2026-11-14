@@ -49,6 +49,24 @@ Nodes are checked through fabric-permissions-api, so LuckPerms-Fabric manages th
 
 Files: `world/nebulaemirror/zones/<name>/` holds `zone.json`, `baseline.nbt` (snapshot), `lint.json`, `patch.nbt`, and after a submit `verify.json`. Zones survive restarts. While sync is off (development), checkout takes the mirror's current content as the origin's and says so.
 
+## Zone boundaries in game
+
+From checkout until the zone is submitted or abandoned, every player sees its boundary (mod 1.7+, on the server and the client), in the style of WorldEditCUI's selection box:
+
+- the 12 edges of the box, with nothing drawn on its faces;
+- **cyan** for zones the player checked out, **yellow** for everyone else's (including zones checked out from the console);
+- parts hidden behind blocks are drawn faintly, so the boundary can also be found from inside a building.
+
+The box is the zone's block range, i.e. from the min corner to the far side of the max block. The colour follows who checked the zone out, not permissions: with `nebulaemirror.zone.others` another player's zone is still yellow.
+
+How it works:
+
+- The server sends the list of active zones (`nebulaemirror:zones`; per zone 6 ints and whether it is the receiving player's own) to each player who joins, and to everyone whenever a zone becomes active or stops being so. A zone is active once its checkout has finished (locked, refreshed, snapshotted). It stops being active when the origin has applied a submit, or at `abandon`. A refused or failed submit leaves the zone checked out, so its boundary stays.
+- The client (`client/ZoneOutlineRenderer`) only draws; it keeps the list until the next one arrives or it disconnects. Zones are in the overworld, so nothing is drawn in other dimensions.
+- A client older than 1.7 does not have the channel and is sent nothing.
+
+Checked on 2026-11-14 with the dev client tour (new tour line `cmd <name> <command...>`, which runs a server command as the player), with one zone checked out by the player and one whose `zone.json` names another owner: the first is cyan and the second yellow, from outside and from inside (through walls, faintly); each disappears when it is abandoned. An earlier revision of the same renderer (with a face grid, one colour) was also checked with "Fabulous!" graphics and with the zone behind the camera (nothing stray on screen). `ZoneOutlineTest` covers the packet and the line geometry.
+
 ## What is written back
 
 Only blocks whose **1.12 result** differs from the snapshot. A block that only changed in a way 1.12 does not store (fence/pane/wall connections, stair shape, leaf distance, snowy grass) is not written: the origin recomputes those itself. Unchanged C&B blocks, chests and other blocks keep their original 1.12 data at the origin because they are never sent.

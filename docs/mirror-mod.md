@@ -42,6 +42,7 @@ It writes into `mirror/mod/run/selftest/`:
 | `nebulaemirror:unknown` | Placeholder for unmapped 1.12 blocks; its data is preserved for write-back |
 | Incremental sync | `sync/` package: the `/nebulaemirror sync ...` commands, the timer, change detection and live/disk application, see [sync.md](sync.md). Server side only; the common mixin `ChunkMapAccessor` lets it tell whether a chunk is in memory |
 | Commands | Everything is under `/nebulaemirror`: `sync ...` ([sync.md](sync.md)), `zone ...` ([writeback.md](writeback.md)), `chat status` ([chat.md](chat.md)), `stats` ([mod-updates.md](mod-updates.md)). `/nm` is the short form (mod 1.6+): a redirect to the same tree, so `/nm zone list` is `/nebulaemirror zone list` with the same permission nodes and tab completion. It works for players, the console and RCON. If another mod already owns `/nm`, the short form is not registered and the log says so |
+| Zone boundaries | Checked-out zones are outlined on every client (mod 1.7+), cyan for the player's own and yellow for others': the server sends the zone boxes (`writeback/ZoneOutlines`), `client/ZoneOutlineRenderer` draws them, see [writeback.md](writeback.md#zone-boundaries-in-game) |
 | WorldEdit aliases | `worldedit/` package: FAWE-style short commands (`//s` → `//set`, ...) that re-run the full WorldEdit command; list in `config/nebulaemirror-we-aliases.json`, see [worldedit-aliases.md](worldedit-aliases.md) |
 
 ## Current results (full modpack dump)

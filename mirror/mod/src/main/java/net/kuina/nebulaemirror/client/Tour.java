@@ -19,11 +19,15 @@ import java.util.Set;
  * wait for chunks to render, save screenshots/<name>.png, then quit. Used to eyeball imported worlds.
  * Two more kinds of line: "creative name page" opens the creative inventory on that tab page (0: vanilla tabs)
  * and screenshots it; "file name source target" copies source over target (relative to the game directory),
- * e.g. to change a config while the game runs.
+ * e.g. to change a config while the game runs. "cmd name command..." runs a server command as the player
+ * (e.g. "cmd checkout nm zone checkout t1 0 60 0 16 80 16").
  */
 final class Tour {
     private record Stop(String name, double x, double y, double z, float yaw, float pitch, int page,
-                        String copyFrom, String copyTo) {
+                        String copyFrom, String copyTo, String command) {
+        boolean screenshot() {
+            return copyFrom == null && command == null;
+        }
     }
 
     private static final int SETTLE_TICKS = 200;
@@ -43,13 +47,16 @@ final class Tour {
                 if (line.startsWith("#")) {
                     continue;
                 }
-                if (p.length == 6) {
+                if (p.length >= 3 && p[0].equals("cmd")) {
+                    stops.add(new Stop(p[1], 0, 0, 0, 0, 0, -1, null, null,
+                            String.join(" ", List.of(p).subList(2, p.length))));
+                } else if (p.length == 6) {
                     stops.add(new Stop(p[0], Double.parseDouble(p[1]), Double.parseDouble(p[2]), Double.parseDouble(p[3]),
-                            Float.parseFloat(p[4]), Float.parseFloat(p[5]), -1, null, null));
+                            Float.parseFloat(p[4]), Float.parseFloat(p[5]), -1, null, null, null));
                 } else if (p.length == 3 && p[0].equals("creative")) {
-                    stops.add(new Stop(p[1], 0, 0, 0, 0, 0, Integer.parseInt(p[2]), null, null));
+                    stops.add(new Stop(p[1], 0, 0, 0, 0, 0, Integer.parseInt(p[2]), null, null, null));
                 } else if (p.length == 4 && p[0].equals("file")) {
-                    stops.add(new Stop(p[1], 0, 0, 0, 0, 0, -1, p[2], p[3]));
+                    stops.add(new Stop(p[1], 0, 0, 0, 0, 0, -1, p[2], p[3], null));
                 }
             }
         } catch (IOException e) {
@@ -73,7 +80,7 @@ final class Tour {
             r.run();
             return;
         }
-        if (index >= 0 && stops.get(index).copyFrom() == null) {
+        if (index >= 0 && stops.get(index).screenshot()) {
             Stop s = stops.get(index);
             Screenshot.grab(mc.gameDirectory, s.name() + ".png", mc.getMainRenderTarget(),
                     msg -> NebulaeMirror.LOG.info("Tour {}: {}", s.name(), msg.getString()));
@@ -87,6 +94,16 @@ final class Tour {
         Stop s = stops.get(index);
         if (mc.screen != null) {
             mc.setScreen(null);
+        }
+        if (s.command() != null) {
+            var server = mc.getSingleplayerServer();
+            server.execute(() -> {
+                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+                server.getCommands().performPrefixedCommand(sp.createCommandSourceStack().withPermission(4), s.command());
+            });
+            NebulaeMirror.LOG.info("Tour {}: ran /{}", s.name(), s.command());
+            wait = 40;
+            return;
         }
         if (s.copyFrom() != null) {
             try {

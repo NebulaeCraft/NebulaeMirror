@@ -114,6 +114,7 @@ public class NebulaeMirror implements ModInitializer {
         SyncService.register();
         net.kuina.nebulaemirror.chat.ChatSync.register();
         ZoneManager.register();
+        net.kuina.nebulaemirror.writeback.ZoneOutlines.register();
         net.kuina.nebulaemirror.writeback.EditGuard.register();
         MirrorCommands.register();
         net.kuina.nebulaemirror.worldedit.WorldEditAliases.register();

@@ -129,6 +129,7 @@ public class NebulaeMirrorClient implements ClientModInitializer {
         });
 
         CreativeTabsClient.install();
+        ZoneOutlineRenderer.install();
         if (Boolean.getBoolean("nebulaemirror.selftest")) {
             SelfTest.install();
         }
