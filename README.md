@@ -20,12 +20,13 @@
 - [x] WorldEdit 短命令（`//s`、`//r`、`//c` 等，可配置），见 [docs/worldedit-aliases.md](docs/worldedit-aliases.md)
 - [x] 所有 `/nebulaemirror` 命令的短写 `/nm`（`/nm zone checkout`、`/nm sync status` 等），见 [docs/mirror-mod.md](docs/mirror-mod.md)
 - [x] 创造模式标签页的客户端配置（按 mod 隐藏、选择图标），见 [docs/creative-tabs.md](docs/creative-tabs.md)
+- [x] 物品栏里的写回标记：容器界面中，放出来无法写回原服的方块所在的格子为淡红色，只有部分状态能写回的为淡黄色，见 [docs/writeback.md](docs/writeback.md#物品栏里的写回标记)
 - [x] 原服 mod 变化（方块新增、移除或改变）时的更新指南，见 [docs/mod-updates.md](docs/mod-updates.md)
 - [x] 更新辅助程序 `ops/update/update.py`：列出 dump 客户端要更换的 jar，然后导入并检查新 dump、做对比、起草 override、生成、测试、升版本号并构建 jar，见 [docs/mod-updates.md](docs/mod-updates.md#使用辅助程序)
 
 ## 版本
 
-三个 mod 都使用两段式版本号 `1.x`，每次发布把小版本号加一。2026-11-08 重新编号时保留了各 mod 原来的小版本号：镜像 mod 1.2（原 0.1.0，加上 WorldEdit 短命令）、bridge 1.3（代码同 0.3.0）、dumper 1.2（代码同 0.2.1）。此后：镜像 mod 1.3（创造模式标签页配置）；镜像 mod 1.4、bridge 1.4、dumper 1.3（游戏内消息全部改为中文）；镜像 mod 1.5（WorldEdit `//pos2` 可选在签出区域之外）；镜像 mod 1.6（`/nebulaemirror` 的短写 `/nm`）；镜像 mod 1.7（签出区域的边界高亮：自己的为青色，他人的为黄色）。版本号在 `mirror/mod/gradle.properties`（`mod_version`）中设置；两个 Forge mod 的版本号在 `build.gradle` 中设置，并要同时修改 `MirrorBridge` / `MirrorDumper` 里的 `VERSION` 常量。
+三个 mod 都使用两段式版本号 `1.x`，每次发布把小版本号加一。2026-11-08 重新编号时保留了各 mod 原来的小版本号：镜像 mod 1.2（原 0.1.0，加上 WorldEdit 短命令）、bridge 1.3（代码同 0.3.0）、dumper 1.2（代码同 0.2.1）。此后：镜像 mod 1.3（创造模式标签页配置）；镜像 mod 1.4、bridge 1.4、dumper 1.3（游戏内消息全部改为中文）；镜像 mod 1.5（WorldEdit `//pos2` 可选在签出区域之外）；镜像 mod 1.6（`/nebulaemirror` 的短写 `/nm`）；镜像 mod 1.7（签出区域的边界高亮：自己的为青色，他人的为黄色）；镜像 mod 1.8（物品栏格子标记不能写回原服的方块：淡红色和淡黄色）。版本号在 `mirror/mod/gradle.properties`（`mod_version`）中设置；两个 Forge mod 的版本号在 `build.gradle` 中设置，并要同时修改 `MirrorBridge` / `MirrorDumper` 里的 `VERSION` 常量。
 
 ## 目录结构
 

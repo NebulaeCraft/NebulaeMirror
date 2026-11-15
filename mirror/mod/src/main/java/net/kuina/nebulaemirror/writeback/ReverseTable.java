@@ -62,14 +62,23 @@ public final class ReverseTable {
 
     /** Built from the origin's level.dat (vanilla numeric ids) and the tables bundled in the jar. */
     public static ReverseTable build(Path legacyLevelDat, Consumer<String> problems) throws IOException {
-        long t0 = System.currentTimeMillis();
-        LegacyLevel level = new LegacyLevel(legacyLevelDat);
+        return build(vanillaIds(new LegacyLevel(legacyLevelDat)), problems);
+    }
+
+    /** The origin's numeric ids of the vanilla 1.12 blocks: all the reverse tables need from its level.dat. */
+    public static Map<String, Integer> vanillaIds(LegacyLevel level) {
         Map<String, Integer> ids = new HashMap<>();
         level.blocks.forEach((id, name) -> {
             if (name.startsWith("minecraft:")) {
                 ids.put(name, id);
             }
         });
+        return ids;
+    }
+
+    /** Built from {@link #vanillaIds} and the tables bundled in the jar (the same on the server and on clients). */
+    public static ReverseTable build(Map<String, Integer> ids, Consumer<String> problems) {
+        long t0 = System.currentTimeMillis();
         VanillaReverse v = VanillaReverse.build(ids, vanillaMetas(), problems);
         ItemDowngrade items = ItemDowngrade.build();
         ModdedReverse m = ModdedReverse.load();

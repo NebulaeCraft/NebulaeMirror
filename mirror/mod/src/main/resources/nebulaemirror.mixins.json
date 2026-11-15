@@ -10,6 +10,7 @@
     "ChunkHolderMixin"
   ],
   "client": [
+    "client.AbstractContainerScreenMixin",
     "client.BlockEntityRenderDispatcherMixin",
     "client.CreativeModeTabAccessor",
     "client.CreativeModeTabsAccessor"

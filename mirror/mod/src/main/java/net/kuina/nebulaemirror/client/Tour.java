@@ -137,9 +137,10 @@ final class Tour {
                             + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(icon.getItem())
                             + (state == null || state.isEmpty() ? "" : state.properties().toString()));
                 }
-                NebulaeMirror.LOG.info("Tour {}: creative page {}{} of {}, {} items in search: {}", s.name(), s.page(),
-                        ok ? "" : " (missing)", pages.getPageCount(),
-                        net.minecraft.world.item.CreativeModeTabs.searchTab().getDisplayItems().size(), tabs);
+                var search = net.minecraft.world.item.CreativeModeTabs.searchTab().getDisplayItems();
+                NebulaeMirror.LOG.info("Tour {}: creative page {}{} of {}, {} items in search ({}): {}", s.name(),
+                        s.page(), ok ? "" : " (missing)", pages.getPageCount(), search.size(),
+                        SlotMarks.summary(search), tabs);
                 wait = 40;
             };
             return;

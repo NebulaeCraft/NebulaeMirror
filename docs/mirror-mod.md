@@ -43,6 +43,7 @@ cd mirror/mod && ./gradlew runSelftestClient
 | 增量同步 | `sync/` 包：`/nebulaemirror sync ...` 命令、定时器、变更检测，以及对在线世界/磁盘的应用，见 [sync.md](sync.md)。仅服务端；通用 mixin `ChunkMapAccessor` 用来判断区块是否在内存里 |
 | 命令 | 全部在 `/nebulaemirror` 之下：`sync ...`（[sync.md](sync.md)）、`zone ...`（[writeback.md](writeback.md)）、`chat status`（[chat.md](chat.md)）、`stats`（[mod-updates.md](mod-updates.md)）。`/nm` 是短写（mod 1.6+）：它重定向到同一棵命令树，所以 `/nm zone list` 就是 `/nebulaemirror zone list`，权限节点和 Tab 补全都相同。玩家、控制台和 RCON 都能用。如果别的 mod 已经占用了 `/nm`，短写不会注册，日志里会说明 |
 | 区域边界 | 签出的区域会在每个客户端上描边（mod 1.7+），自己的为青色，他人的为黄色：服务端发送区域的包围盒（`writeback/ZoneOutlines`），`client/ZoneOutlineRenderer` 负责绘制，见 [writeback.md](writeback.md#游戏内的区域边界) |
+| 写回标记 | 容器界面里，放出来无法写回原服的物品所在的格子为淡红色，只有部分状态能写回的为淡黄色（mod 1.8+）：服务端发送原服的 1.12 原版方块 id（`writeback/WritebackMarks`），客户端用 jar 里的反向表在本地判定（`client/SlotMarks`），客户端 mixin `AbstractContainerScreenMixin` 负责上色，见 [writeback.md](writeback.md#物品栏里的写回标记) |
 | WorldEdit 别名 | `worldedit/` 包：FAWE 风格的短命令（`//s` → `//set` 等），实际执行完整的 WorldEdit 命令；列表在 `config/nebulaemirror-we-aliases.json`，见 [worldedit-aliases.md](worldedit-aliases.md) |
 
 ## 当前结果（完整模组包 dump）
